@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DATA 604 Revision Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: notebook-style study guide. Sticky contents rail on the left, one reading column on the right. Highlighter yellow marks the key idea in each step. */
+:root{
+  --bg:#f6f8fb; --surface:#ffffff; --fg:#1b2433; --muted:#5a6578; --line:#dde3ec;
+  --accent:#2457c5; --accent-soft:#e7eefc; --mark:#fff1a8; --code-bg:#eef2f8; --code-fg:#1b2433;
+  --good:#1f7a4d; --good-soft:#e3f4ea; --bad:#b4372f; --bad-soft:#fbe7e5;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Source Sans 3",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161f; --surface:#171e2a; --fg:#e4e9f2; --muted:#9aa6b8; --line:#2a3445;
+  --accent:#7ea4ff; --accent-soft:#1d2a45; --mark:#5a4d12; --code-bg:#0d1219; --code-fg:#dfe6f1;
+  --good:#6fd39e; --good-soft:#15301f; --bad:#ff8f86; --bad-soft:#3a1b19; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161f; --surface:#171e2a; --fg:#e4e9f2; --muted:#9aa6b8; --line:#2a3445;
+  --accent:#7ea4ff; --accent-soft:#1d2a45; --mark:#5a4d12; --code-bg:#0d1219; --code-fg:#dfe6f1;
+  --good:#6fd39e; --good-soft:#15301f; --bad:#ff8f86; --bad-soft:#3a1b19; color-scheme:dark}
+
+html{scroll-behavior:smooth;scroll-padding-top:calc(env(safe-area-inset-top,0px) + 72px)}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+.shell{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+
+/* Contents rail */
+.rail{position:sticky;top:env(safe-area-inset-top,0px);height:calc(100vh - env(safe-area-inset-top,0px));overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding-block:24px 40px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:20px}
+.brand{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.15;letter-spacing:-.01em}
+.brand small{display:block;font-family:var(--body);font-weight:400;font-size:14px;color:var(--muted);letter-spacing:0;margin-top:4px}
+.filter{width:100%;margin-block:18px 8px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:15px}
+.navgroup{margin-top:18px}
+.navgroup h2{font-family:var(--body);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 6px}
+.navgroup ol{list-style:none;margin:0;padding:0;display:grid;gap:1px}
+.navgroup a{display:flex;gap:10px;align-items:baseline;padding:5px 8px;border-radius:6px;text-decoration:none;color:var(--fg);font-size:15px;line-height:1.35}
+.navgroup a:hover{background:var(--accent-soft)}
+.navgroup a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.navgroup .n{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:24px;font-variant-numeric:tabular-nums}
+.navgroup a.active .n{color:var(--accent)}
+.nomatch{font-size:14px;color:var(--muted);margin-top:12px}
+
+/* Mobile top bar */
+.topbar{display:none}
+@media (max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .topbar{display:flex;position:sticky;top:env(safe-area-inset-top,0px);z-index:20;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border-bottom:1px solid var(--line);padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .topbar strong{font-family:var(--display);font-size:18px}
+  .topbar button{font:inherit;font-size:15px;font-weight:600;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+  .rail{position:fixed;inset:0;z-index:25;height:auto;border-right:0;transform:translateX(-100%);transition:transform .2s ease;padding-top:calc(env(safe-area-inset-top,0px) + 64px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .rail.open{transform:none}
+  html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px)}
+}
+@media (prefers-reduced-motion:reduce){.rail{transition:none}}
+
+/* Reading column */
+main{padding-block:40px 120px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.col{max-width:760px;margin:0 auto}
+.hero h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5vw,46px);line-height:1.05;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.hero p{color:var(--muted);font-size:18px;max-width:62ch}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:20px}
+.howto div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:15px}
+.howto b{display:block;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
+
+.part{margin-top:64px;padding-top:24px;border-top:2px solid var(--fg)}
+.part .eyebrow{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+.part h2{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.1;letter-spacing:-.015em;margin:4px 0 8px;text-wrap:balance}
+.part > p{color:var(--muted);margin:0}
+
+section.step{margin-top:44px}
+section.step h3{font-family:var(--display);font-weight:600;font-size:25px;line-height:1.2;margin:0 0 10px;display:flex;gap:12px;align-items:baseline;text-wrap:balance}
+section.step h3 .n{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:6px;flex:none}
+h4{font-size:17px;font-weight:700;margin:22px 0 6px}
+p{margin:10px 0}
+mark{background:var(--mark);color:inherit;padding:0 3px;border-radius:3px}
+.key{border-left:4px solid var(--accent);background:var(--surface);padding:10px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+.key strong:first-child{color:var(--accent)}
+
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);color:var(--code-fg);padding:1px 5px;border-radius:4px}
+pre{background:var(--code-bg);color:var(--code-fg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:14px;line-height:1.55;margin:12px 0}
+pre code{background:none;padding:0;font-size:inherit}
+pre .c{color:var(--muted)}
+pre.out{background:transparent;border-style:dashed}
+pre.out::before{content:"output";display:block;font-family:var(--body);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+
+.lines{margin:12px 0;display:grid;gap:8px}
+.lines div{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:6px 14px;align-items:baseline}
+.lines code{white-space:nowrap}
+@media (max-width:600px){.lines div{grid-template-columns:minmax(0,1fr)}.lines code{white-space:normal;word-break:break-word}}
+
+.tbl{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+
+.vs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:14px 0}
+.vs > div{border-radius:10px;padding:10px 14px;min-width:0}
+.vs .ok{background:var(--good-soft)}
+.vs .no{background:var(--bad-soft)}
+.vs .lbl{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.vs .ok .lbl{color:var(--good)} .vs .no .lbl{color:var(--bad)}
+.vs pre{background:var(--surface);margin:6px 0 4px}
+
+details.check{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.check summary{cursor:pointer;padding:10px 16px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.check summary::-webkit-details-marker{display:none}
+details.check summary::after{content:"Show";font-weight:600;font-size:14px;color:var(--accent)}
+details.check[open] summary::after{content:"Hide"}
+details.check .body{padding:0 16px 14px;border-top:1px solid var(--line)}
+details.check ol{padding-left:20px;margin:10px 0 0}
+details.check li{margin-bottom:10px}
+details.check .a{display:block;color:var(--muted);margin-top:2px}
+details.check .a::before{content:"Answer: ";font-weight:700;color:var(--good)}
+
+.mistakes{display:grid;gap:10px;margin-top:14px}
+.mistakes > div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.mistakes b{display:block}
+.mistakes span{color:var(--muted);font-size:15px}
+
+.tree{font-family:var(--mono);font-size:14px;line-height:1.6}
+footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:16px}
+.totop{display:inline-block;margin-top:10px;font-size:14px}
+</style>
+<style>*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+
+<header class="topbar">
+  <strong>DATA 604</strong>
+  <button type="button" id="menuBtn" aria-controls="rail" aria-expanded="false">Contents</button>
+</header>
+
+<div class="shell">
+<nav class="rail" id="rail" aria-label="Contents">
+  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON and data cleaning, step by step</small></div>
+  <label for="navFilter" class="visually-hidden" style="position:absolute;left:-9999px">Filter topics</label>
+  <input class="filter" id="navFilter" type="search" placeholder="Find a topic, e.g. strip, nunique" autocomplete="off">
+
+  <div class="navgroup">
+    <h2>Start here</h2>
+    <ol><li><a href="#start"><span class="n">→</span>How to use this guide</a></li></ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 1 · Files &amp; CSVs</h2>
+    <ol>
+      <li><a href="#f1"><span class="n">1.1</span>What file I/O is</a></li>
+      <li><a href="#f2"><span class="n">1.2</span>Notebook commands: %%, !</a></li>
+      <li><a href="#f3"><span class="n">1.3</span>Open, read, close</a></li>
+      <li><a href="#f4"><span class="n">1.4</span>try / except</a></li>
+      <li><a href="#f5"><span class="n">1.5</span>The with statement</a></li>
+      <li><a href="#f6"><span class="n">1.6</span>read, readline, readlines, strip</a></li>
+      <li><a href="#f7"><span class="n">1.7</span>Writing: w, a, x</a></li>
+      <li><a href="#f8"><span class="n">1.8</span>csv.reader &amp; DictReader</a></li>
+      <li><a href="#f9"><span class="n">1.9</span>Text vs numbers: int()</a></li>
+      <li><a href="#f10"><span class="n">1.10</span>Counting with csv</a></li>
+      <li><a href="#f11"><span class="n">1.11</span>The pandas way</a></li>
+      <li><a href="#f12"><span class="n">1.12</span>Unique authorities &amp; the hyphen trap</a></li>
+      <li><a href="#f13"><span class="n">1.13</span>ECS students: sum</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 2 · JSON</h2>
+    <ol>
+      <li><a href="#j1"><span class="n">2.1</span>What JSON is</a></li>
+      <li><a href="#j2"><span class="n">2.2</span>dump, dumps, load, loads</a></li>
+      <li><a href="#j3"><span class="n">2.3</span>Saving &amp; reading data1.json</a></li>
+      <li><a href="#j4"><span class="n">2.4</span>Navigating nested data</a></li>
+      <li><a href="#j5"><span class="n">2.5</span>pd.read_json</a></li>
+      <li><a href="#j6"><span class="n">2.6</span>Generated data &amp; indent</a></li>
+      <li><a href="#j7"><span class="n">2.7</span>Flattening the friends</a></li>
+      <li><a href="#j8"><span class="n">2.8</span>Keeping the link (keys)</a></li>
+      <li><a href="#j9"><span class="n">2.9</span>read_json vs read_csv</a></li>
+      <li><a href="#j10"><span class="n">2.10</span>JSON to CSV</a></li>
+      <li><a href="#j11"><span class="n">2.11</span>Theaters: deep nesting</a></li>
+      <li><a href="#j12"><span class="n">2.12</span>The stack explorer</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 3 · Data cleaning</h2>
+    <ol>
+      <li><a href="#c1"><span class="n">3.1</span>Downloading the weather data</a></li>
+      <li><a href="#c2"><span class="n">3.2</span>concat &amp; rename</a></li>
+      <li><a href="#c3"><span class="n">3.3</span>info, dtypes, selecting</a></li>
+      <li><a href="#c4"><span class="n">3.4</span>Text to dates: to_datetime</a></li>
+      <li><a href="#c5"><span class="n">3.5</span>.dt, set_index, between_time</a></li>
+      <li><a href="#c6"><span class="n">3.6</span>Measuring missing values</a></li>
+      <li><a href="#c7"><span class="n">3.7</span>Dropping columns</a></li>
+      <li><a href="#c8"><span class="n">3.8</span>Imputation: mean, median, interpolate</a></li>
+      <li><a href="#c9"><span class="n">3.9</span>SQL-like queries</a></li>
+      <li><a href="#c10"><span class="n">3.10</span>Subqueries &amp; JOINs</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Quick reference</h2>
+    <ol>
+      <li><a href="#cheat"><span class="n">R1</span>Cheat sheet</a></li>
+      <li><a href="#mistakes"><span class="n">R2</span>Mistakes to avoid</a></li>
+      <li><a href="#project"><span class="n">R3</span>Team project notes</a></li>
+    </ol>
+  </div>
+  <p class="nomatch" id="noMatch" hidden>No topic matches that word. Try a shorter one.</p>
+</nav>
+
+<main>
+<div class="col">
+
+<!-- ============ START ============ -->
+<section class="hero" id="start">
+  <h1>Everything from DATA 604 so far, one step at a time</h1>
+  <p>Each step shows the code, explains what every line does and why, then ends with a <em>Check yourself</em> box. Try the questions before you open the answers.</p>
+  <div class="howto">
+    <div><b>Jump around</b>Use the contents list, or type a word like <code>strip</code> into the search box to find it.</div>
+    <div><b>Highlighted text</b><mark>Yellow</mark> marks the one idea to remember from each step.</div>
+    <div><b>Last-minute review</b>Go straight to the <a href="#cheat">cheat sheet</a> and <a href="#mistakes">mistakes to avoid</a>.</div>
+  </div>
+</section>
+
+<!-- ============ CLASS 1 ============ -->
+<div class="part" id="class1">
+  <div class="eyebrow">Class 1</div>
+  <h2>Working with files and CSVs</h2>
+  <p>Practice files, the School Enrolment dataset, the csv library and pandas.</p>
+</div>
+
+<section class="step" id="f1">
+  <h3><span class="n">1.1</span>What file I/O is</h3>
+  <p><strong>File I/O</strong> means Input/Output: how Python reads data <em>from</em> a file on disk and writes data <em>back</em> to one.</p>
+<pre><code>f = open("test_file.txt", "r")</code></pre>
+  <p><code>open()</code> gives you back a <strong>file object</strong>. It's an object, so it has <strong>methods</strong> (things it can do, like <code>.read()</code>) and <strong>properties</strong> (facts about it, like <code>.closed</code>).</p>
+  <div class="tbl"><table>
+    <tr><th>Argument</th><th>Meaning</th></tr>
+    <tr><td><code>name</code></td><td>The file name or path, e.g. <code>"data.csv"</code></td></tr>
+    <tr><td><code>access_mode</code></td><td>What you want to do: read, write, append…</td></tr>
+    <tr><td><code>buffering</code></td><td>How much of the file is held in memory at once. You rarely set it.</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Mode</th><th>What it does</th></tr>
+    <tr><td><code>'r'</code></td><td>Read. This is the default.</td></tr>
+    <tr><td><code>'w'</code></td><td>Write. <mark>Wipes the file first.</mark></td></tr>
+    <tr><td><code>'a'</code></td><td>Append. Adds to the end and keeps old content.</td></tr>
+    <tr><td><code>'x'</code></td><td>Create a new file. Fails if it already exists.</td></tr>
+    <tr><td><code>'b'</code></td><td>Binary, for images and other non-text files.</td></tr>
+    <tr><td><code>'+'</code></td><td>Read and write.</td></tr>
+  </table></div>
+</section>
+
+<section class="step" id="f2">
+  <h3><span class="n">1.2</span>Notebook commands: <code>%%</code> and <code>!</code></h3>
+<pre><code>%%writefile test_file.txt
+This is the first line
+This is the second line
+This is the last line</code></pre>
+  <div class="lines">
+    <div><code>%%writefile test_file.txt</code><span>A Jupyter/Colab <strong>magic command</strong>, not Python. Saves everything below it in the cell into <code>test_file.txt</code>.</span></div>
+    <div><code>The three lines</code><span>The text that goes into the file.</span></div>
+  </div>
+  <p>Running it a second time with new text printed <strong>Overwriting test_file.txt</strong>. The old three lines were gone. The file then held only:</p>
+<pre class="out">This is Data602
+This is the first class</pre>
+<pre><code>!pwd   <span class="c"># print working directory → /content</span>
+!ls    <span class="c"># list files → sample_data  test_file.txt</span></code></pre>
+  <div class="key"><strong>Remember:</strong> <code>%%</code> applies to the whole cell, <code>%</code> to one line, <code>!</code> runs a computer command, and everything else is Python.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>After both <code>%%writefile</code> cells ran, what's in the file?<span class="a">Only the second cell's two lines. The first version was overwritten.</span></li>
+    <li>Why run <code>!ls</code> before opening a file?<span class="a">To confirm the file is really in the folder you're working in. Many "file not found" errors come from the wrong folder.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f3">
+  <h3><span class="n">1.3</span>Open, read, close</h3>
+<pre><code>my_file = open("test_file.txt")
+my_data = my_file.read()
+print(my_data)
+my_file.close()</code></pre>
+  <div class="lines">
+    <div><code>open("test_file.txt")</code><span>Opens the file in read mode (the default) and returns the file object.</span></div>
+    <div><code>my_file =</code><span>Stores the file object. This is the <strong>handle</strong>, not the text.</span></div>
+    <div><code>my_file.read()</code><span>Pulls out the whole file as one string.</span></div>
+    <div><code>my_data =</code><span>Stores that string. This is the <strong>box</strong> holding the text.</span></div>
+    <div><code>my_file.close()</code><span>Releases the file.</span></div>
+  </div>
+  <div class="key"><strong>Drawer picture:</strong> <code>my_file</code> is the handle on the drawer, <code>.read()</code> pulls everything out, and <code>my_data</code> is the box you put it in. <mark>Closing the drawer doesn't empty your box.</mark></div>
+  <h4>Reading twice</h4>
+  <div class="tbl"><table>
+    <tr><th>Situation</th><th>Result of <code>my_file.read()</code></th></tr>
+    <tr><td>File still open, already read once</td><td><code>''</code> (empty). The "bookmark" is at the end.</td></tr>
+    <tr><td>File closed</td><td><code>ValueError: I/O operation on closed file</code></td></tr>
+    <tr><td>Want to read again</td><td>Open the file again to reset the bookmark.</td></tr>
+  </table></div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>What does <code>print(my_file)</code> show?<span class="a">Something technical like <code>&lt;_io.TextIOWrapper name='test_file.txt' ...&gt;</code>. That's the handle, not the words.</span></li>
+    <li>After <code>.close()</code>, does <code>print(my_data)</code> still work?<span class="a">Yes. <code>my_data</code> is a normal string variable, separate from the file.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f4">
+  <h3><span class="n">1.4</span>Handling a missing file with <code>try / except</code></h3>
+<pre><code>try:
+    file = open("not_file.txt", "r")
+    content = file.read()
+    file.close()
+    print("File contents: " + content)
+except IOError as e:
+    print("File not found error:", e)</code></pre>
+  <div class="lines">
+    <div><code>try:</code><span>Attempt the indented code. If something fails, don't crash.</span></div>
+    <div><code>open("not_file.txt")</code><span>Runs, <strong>fails</strong> (the file doesn't exist), and Python jumps to <code>except</code>.</span></div>
+    <div><code>read / close / print</code><span>Never run, because the line before them failed.</span></div>
+    <div><code>except IOError as e:</code><span>Catches file errors and stores the message in <code>e</code>.</span></div>
+  </div>
+<pre class="out">File not found error: [Errno 2] No such file or directory: 'not_file.txt'</pre>
+  <div class="key"><strong>Remember:</strong> the failing line <mark>did run; it ran and failed</mark>. The lines after it never ran. That difference tells you where to look when debugging.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>If the file did exist, what happens to the <code>except</code> part?<span class="a">It's skipped entirely, and the file contents print.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f5">
+  <h3><span class="n">1.5</span>The <code>with</code> statement</h3>
+<pre><code>with open('test_file.txt') as another_file:
+    my_other_data = another_file.read()
+
+another_file.closed   <span class="c"># True</span></code></pre>
+  <div class="lines">
+    <div><code>with open(...) as another_file:</code><span>Opens the file and names the object. <mark>Closes it automatically when the indented block ends</mark>, even if there's an error.</span></div>
+    <div><code>my_other_data = ...</code><span>Indented, so it runs while the file is open.</span></div>
+    <div><code>another_file.closed</code><span>A property that answers "is it closed?" → <code>True</code>.</span></div>
+  </div>
+  <p>Use <code>with</code> by default. You no longer need <code>.close()</code>.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>After the block: which works, <code>print(text)</code> or <code>print(f.read())</code>?<span class="a"><code>print(text)</code> works because it's just a variable. <code>f.read()</code> errors because <code>with</code> closed the file.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f6">
+  <h3><span class="n">1.6</span><code>read</code>, <code>readline</code>, <code>readlines</code> and <code>strip</code></h3>
+<pre><code>with open("School_Enrolment_Data.csv", "r") as fp:
+    lines = fp.readlines()
+    for line in lines:
+        print("Line: {}".format(line.strip()))</code></pre>
+  <div class="lines">
+    <div><code>fp.readlines()</code><span>Reads the whole file as a <strong>list of strings</strong>, one per line. Each still ends in <code>\n</code>.</span></div>
+    <div><code>for line in lines:</code><span>Loops through the list, one line at a time.</span></div>
+    <div><code>line.strip()</code><span>Removes whitespace at both ends, including the <code>\n</code>.</span></div>
+    <div><code>"Line: {}".format(...)</code><span>Puts the line where <code>{}</code> is. Same as <code>f"Line: {line.strip()}"</code>.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Method</th><th>Gives you</th></tr>
+    <tr><td><code>.read()</code></td><td>The whole file as one string</td></tr>
+    <tr><td><code>.read(15)</code></td><td>The first 15 characters</td></tr>
+    <tr><td><code>.readline()</code></td><td>The next line each time it's called, and <code>''</code> at the end</td></tr>
+    <tr><td><code>.readlines()</code></td><td>All lines as a list</td></tr>
+  </table></div>
+  <div class="key"><strong>Why strip?</strong> Each line already has a <code>\n</code>, and <code>print()</code> adds another. <mark>Without <code>.strip()</code> you get a blank line between every row.</mark></div>
+</section>
+
+<section class="step" id="f7">
+  <h3><span class="n">1.7</span>Writing: <code>'w'</code>, <code>'a'</code>, <code>'x'</code></h3>
+<pre><code>with open('out_file.txt', 'w') as output_file:
+    output_file.write("Hello world")
+
+!cat out_file.txt    <span class="c"># shows: Hello world</span></code></pre>
+  <div class="lines">
+    <div><code>'w'</code><span>Creates the file if it's missing. If it exists, wipes it first.</span></div>
+    <div><code>.write("...")</code><span>Writes text. <mark>Adds no newline</mark>. Use <code>"\n"</code> yourself.</span></div>
+    <div><code>.writelines([...])</code><span>Writes several strings. Also adds no newlines.</span></div>
+    <div><code>!cat</code><span>A computer command that displays a file.</span></div>
+  </div>
+  <div class="vs">
+    <div class="no"><span class="lbl">'w' again</span><pre><code>f.write("Goodbye")</code></pre>File: <code>Goodbye</code>. The old text is gone.</div>
+    <div class="ok"><span class="lbl">'a' append</span><pre><code>f.write("\nGoodbye")</code></pre>File: <code>Hello world</code> then <code>Goodbye</code> on the next line.</div>
+  </div>
+  <p><code>'x'</code> refuses to touch an existing file and raises <code>FileExistsError</code>. Use it when you must never overwrite anything.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li><code>testdata.txt</code> holds <code>Hello Mariam</code>. You append <code>"Welcome to DATA 604"</code>. Result?<span class="a"><code>Hello MariamWelcome to DATA 604</code>, because there's no <code>\n</code>.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f8">
+  <h3><span class="n">1.8</span><code>csv.reader</code> and <code>csv.DictReader</code></h3>
+<pre><code>import csv
+
+with open('School_Enrolment_Data.csv', 'r') as file:
+    reader = csv.reader(file)
+    for row in reader:
+        print(row)</code></pre>
+  <div class="lines">
+    <div><code>import csv</code><span>Loads Python's built-in CSV tools.</span></div>
+    <div><code>csv.reader(file)</code><span>Splits each line at the commas. It also handles names that contain commas, inside quotes.</span></div>
+    <div><code>row</code><span>A <strong>list of strings</strong>, e.g. <code>['2013_2014', 'Public', ..., '348', '', '']</code>.</span></div>
+  </div>
+<pre><code>with open('School_Enrolment_Data.csv', 'r') as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        print(row['School Name'])</code></pre>
+  <p><code>DictReader</code> uses the header row as <strong>keys</strong>, so each row is a dictionary.</p>
+  <div class="tbl"><table>
+    <tr><th></th><th>csv.reader</th><th>csv.DictReader</th></tr>
+    <tr><td>Each row is</td><td>a list</td><td>a dictionary</td></tr>
+    <tr><td>School Name</td><td><code>row[4]</code> (count from 0)</td><td><code>row['School Name']</code></td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark>everything from the csv library is text</mark>, even numbers, and empty cells are <code>''</code>.</div>
+</section>
+
+<section class="step" id="f9">
+  <h3><span class="n">1.9</span>Text vs numbers: <code>int()</code></h3>
+<pre><code>249      <span class="c"># a number (int), you can do maths with it</span>
+'249'    <span class="c"># a string (str), just characters</span>
+
+total = 0 + '249'        <span class="c"># TypeError: unsupported operand type(s) for +: 'int' and 'str'</span>
+total = 0 + int('249')   <span class="c"># 249</span></code></pre>
+  <p><code>int()</code> turns text into a whole number. <code>float()</code> does the same for decimals. <code>int('')</code> also errors, so check for blanks first:</p>
+<pre><code>if row['Grade 7'] != '':
+    total = total + int(row['Grade 7'])</code></pre>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Which errors: <code>10 + 5</code>, <code>10 + '5'</code>, <code>10 + int('5')</code>?<span class="a">Only <code>10 + '5'</code>.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f10">
+  <h3><span class="n">1.10</span>Counting Grade 7 schools with csv</h3>
+  <p>Question: in 2015-16, how many schools had students in Grade 7?</p>
+<pre><code>import csv
+grade_7_schools = 0
+
+with open('School_Enrolment_Data.csv') as file:
+    reader = csv.reader(file)
+    next(reader)
+    for row in reader:
+        school_year = row[0]
+        grade_7_students = row[13]
+        if school_year == '2015_2016' and grade_7_students != '':
+            grade_7_schools += 1
+
+print(grade_7_schools)   <span class="c"># 121</span></code></pre>
+  <div class="lines">
+    <div><code>grade_7_schools = 0</code><span>A counter that starts at zero.</span></div>
+    <div><code>next(reader)</code><span>Skips one row: the header.</span></div>
+    <div><code>row[0]</code>, <code>row[13]</code><span>School Year and Grade 7, by position.</span></div>
+    <div><code>==</code> / <code>!=</code><span>"Is equal to" / "is not equal to". <code>and</code> means both must be true.</span></div>
+    <div><code>+= 1</code><span>Short for <code>grade_7_schools = grade_7_schools + 1</code>.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Goal</th><th>Line inside the if</th></tr>
+    <tr><td>Count <strong>schools</strong></td><td><code>grade_7_schools += 1</code></td></tr>
+    <tr><td>Total <strong>students</strong></td><td><code>total += int(grade_7_students)</code></td></tr>
+  </table></div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Without <code>next(reader)</code>, would the count change here?<span class="a">No. The header's <code>row[0]</code> is <code>'School Year'</code>, which fails the <code>if</code>. It's still good practice, because doing maths on the header would crash <code>int()</code>.</span></li>
+    <li>Grade 7 values <code>'100'</code>, <code>''</code>, <code>'50'</code>: school count and student total?<span class="a">2 schools, 150 students.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f11">
+  <h3><span class="n">1.11</span>The same question with pandas</h3>
+<pre><code>import pandas as pd
+
+df = pd.read_csv('School_Enrolment_Data.csv')
+filtered = df[df['School Year'] == '2015_2016']
+grade_7_schools = filtered['Grade 7'].count()
+print(grade_7_schools)   <span class="c"># 121</span></code></pre>
+  <div class="lines">
+    <div><code>pd.read_csv(...)</code><span>Reads the CSV into a <strong>DataFrame</strong> (a table). Uses the header, converts numbers, and turns empty cells into <code>NaN</code>.</span></div>
+    <div><code>df['School Year'] == '2015_2016'</code><span>A True/False value for every row.</span></div>
+    <div><code>df[ ... ]</code><span>Keeps only the True rows.</span></div>
+    <div><code>.count()</code><span>Counts non-missing values, skipping <code>NaN</code>.</span></div>
+    <div><code>.sum()</code><span>Adds the values, also skipping <code>NaN</code>.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>csv library</th><th>pandas</th></tr>
+    <tr><td><code>next(reader)</code> to skip the header</td><td>Handled automatically</td></tr>
+    <tr><td>Loop through every row</td><td>Works on all rows at once</td></tr>
+    <tr><td><code>!= ''</code> to skip blanks</td><td><code>.count()</code> / <code>.sum()</code> skip <code>NaN</code></td></tr>
+    <tr><td><code>+= 1</code> counter</td><td><code>.count()</code></td></tr>
+  </table></div>
+</section>
+
+<section class="step" id="f12">
+  <h3><span class="n">1.12</span>Unique authorities and the hyphen trap</h3>
+  <p>Question: how many different school authorities are there in 2020-2021?</p>
+  <h4>Why the notebook got 0</h4>
+<pre><code>df[df['School Year'] == '2020_2021']   <span class="c"># 0 rows</span>
+print(df['School Year'].unique())</code></pre>
+<pre class="out">['2013_2014' '2014_2015' '2015_2016' '2018_2019' '2016_2017' '2019-2020' '2017_2018' '2020-2021']</pre>
+  <div class="key"><strong>The trap:</strong> older years use <code>_</code>, but 2019-2020 and 2020-2021 use <code>-</code>. <mark>Run <code>.unique()</code> on a column before you filter it.</mark></div>
+<pre><code>filtered = df[df['School Year'] == '2020-2021']
+num_authorities = filtered['School Authority Name'].nunique()</code></pre>
+  <div class="tbl"><table>
+    <tr><th>Column values A, A, B, A, C</th><th>Result</th></tr>
+    <tr><td><code>.unique()</code></td><td><code>['A','B','C']</code>, the list</td></tr>
+    <tr><td><code>.nunique()</code></td><td><code>3</code>, how many distinct values</td></tr>
+    <tr><td><code>.count()</code></td><td><code>5</code>, every non-missing value</td></tr>
+  </table></div>
+  <h4>The csv version uses a set</h4>
+<pre><code>import csv
+authorities = set()
+
+with open('School_Enrolment_Data.csv') as file:
+    reader = csv.reader(file)
+    next(reader)
+    for row in reader:
+        if row[0] == '2020-2021':
+            authorities.add(row[2])   <span class="c"># column 2 = authority NAME</span>
+
+print(len(authorities))</code></pre>
+  <p>A <code>+= 1</code> counter has no memory, so it would count each school. A <strong>set</strong> remembers what it has seen and ignores repeats. <code>row[1]</code> is the <em>category</em> (Public, Separate…), not the name.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Why can't <code>+= 1</code> count unique things?<span class="a">It doesn't remember which names it has seen, so repeats get counted again.</span></li>
+    <li>How do you see the names instead of the count?<span class="a"><code>print(authorities)</code>, or <code>for name in sorted(authorities): print(name)</code>.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="f13">
+  <h3><span class="n">1.13</span>ECS students: use <code>sum</code></h3>
+  <p>ECS (Early Childhood Services) is Alberta's kindergarten. "2018-17" in the question doesn't exist, so it's most likely 2018_2019. Confirm with the instructor.</p>
+<pre><code>filtered = df[df['School Year'] == '2018_2019']
+num_ecs_students = int(filtered['ECS'].sum())
+print(num_ecs_students)</code></pre>
+  <div class="lines">
+    <div><code>.sum()</code><span>The question asks for <strong>students</strong>, so add the values.</span></div>
+    <div><code>int(...)</code><span>Columns with <code>NaN</code> are stored as decimals, so this tidies <code>12345.0</code> into <code>12345</code>.</span></div>
+  </div>
+  <div class="key"><strong>Naming tip:</strong> don't call a variable <code>filter</code>, <code>list</code>, <code>sum</code>, <code>max</code>, <code>min</code>, <code>type</code>, <code>id</code> or <code>input</code>. Those are built-in Python names, and you'd cover them up.</div>
+</section>
+
+<!-- ============ CLASS 2 ============ -->
+<div class="part" id="class2">
+  <div class="eyebrow">Class 2</div>
+  <h2>Working with JSON</h2>
+  <p>Saving Python data as JSON, nested data, the ATIP dataset, generated people, and the theaters example.</p>
+</div>
+
+<section class="step" id="j1">
+  <h3><span class="n">2.1</span>What JSON is</h3>
+  <p><strong>JSON</strong> (JavaScript Object Notation) is a text format for storing and sending data. It looks almost exactly like a Python dictionary.</p>
+<pre><code>{
+  "name": "John",
+  "age": 30,
+  "emails": ["john@example.com", "john@gmail.com"],
+  "address": {"street": "123 Main St", "city": "Exampleville"}
+}</code></pre>
+  <div class="tbl"><table>
+    <tr><th>JSON</th><th>Python</th></tr>
+    <tr><td>Object <code>{ }</code></td><td>dict</td></tr>
+    <tr><td>Array <code>[ ]</code></td><td>list</td></tr>
+    <tr><td>String / number</td><td>str / int or float</td></tr>
+    <tr><td><code>true</code> / <code>false</code></td><td><code>True</code> / <code>False</code></td></tr>
+    <tr><td><code>null</code></td><td><code>None</code></td></tr>
+  </table></div>
+  <div class="key"><strong>Why it exists:</strong> a CSV is flat, with one value per cell. <mark>JSON can nest</mark>: John has two emails and an address with its own parts.</div>
+</section>
+
+<section class="step" id="j2">
+  <h3><span class="n">2.2</span><code>dump</code>, <code>dumps</code>, <code>load</code>, <code>loads</code></h3>
+  <div class="tbl"><table>
+    <tr><th>Function</th><th>Direction</th><th>Works with</th></tr>
+    <tr><td><code>json.dumps(obj)</code></td><td>Python → JSON</td><td>gives back a <strong>s</strong>tring</td></tr>
+    <tr><td><code>json.dump(obj, file)</code></td><td>Python → JSON</td><td>writes into a file</td></tr>
+    <tr><td><code>json.loads(text)</code></td><td>JSON → Python</td><td>reads from a <strong>s</strong>tring</td></tr>
+    <tr><td><code>json.load(file)</code></td><td>JSON → Python</td><td>reads from a file</td></tr>
+  </table></div>
+  <div class="key"><strong>Memory trick:</strong> dump = save out, load = bring in, and <mark>the "s" means string</mark>. Python → JSON is <em>serializing</em>, and back is <em>deserializing</em>.</div>
+</section>
+
+<section class="step" id="j3">
+  <h3><span class="n">2.3</span>Saving and reading <code>data1.json</code></h3>
+<pre><code>import json
+
+myList = ['1', '2', '3']
+myDict = {'Woodbine': 57, 'Whitehorn': 123}
+
+json_string = json.dumps({"mylist": myList, "myDict": myDict})
+with open('data1.json', 'w') as file:
+    file.write(json_string)
+
+with open('data1.json', 'w') as file:
+    json.dump(myDict, file)
+
+with open('data1.json', 'r') as file:
+    json_string = file.read()
+
+my_data = json.loads(json_string)
+print(type(my_data))      <span class="c"># &lt;class 'dict'&gt;</span>
+print(type(json_string))  <span class="c"># &lt;class 'str'&gt;</span></code></pre>
+  <div class="lines">
+    <div><code>{"mylist": ..., "myDict": ...}</code><span>Packs both objects into one dictionary "suitcase", each with a label.</span></div>
+    <div><code>json.dumps(...)</code><span>Turns it into one long JSON <strong>string</strong>.</span></div>
+    <div><code>'data1.json'</code><span>Just the file name. <code>.json</code> is a label, and the content is what makes it JSON.</span></div>
+    <div><code>json.dump(myDict, file)</code><span>Writes straight into the file. <mark>The second <code>'w'</code> wipes the suitcase</mark>, so only <code>myDict</code> is left.</span></div>
+    <div><code>file.read()</code> + <code>json.loads()</code><span>Text → real dictionary. <code>json.load(file)</code> does both in one step.</span></div>
+    <div><code>type()</code><span>Tells you what kind of object something is.</span></div>
+  </div>
+  <h4>One top-level object</h4>
+  <div class="vs">
+    <div class="no"><span class="lbl">Not valid</span><pre><code>["1", "2", "3"]
+{"Woodbine": 57}</code></pre><code>JSONDecodeError: Extra data</code></div>
+    <div class="ok"><span class="lbl">Valid</span><pre><code>{"mylist": ["1","2","3"],
+ "myDict": {"Woodbine": 57}}</code></pre>One suitcase, many things inside.</div>
+  </div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li><code>my_data['Woodbine']</code> vs <code>json_string['Woodbine']</code>?<span class="a"><code>57</code>, and a <code>TypeError</code>. A string can only be indexed by position, and each position is one character: <code>json_string[0]</code> is <code>'{'</code>.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="j4">
+  <h3><span class="n">2.4</span>Navigating nested data</h3>
+<pre><code>with open("atip-digital-services-aia.json") as my_json:
+    %time aitp_info = json.load(my_json)   <span class="c"># Wall time: ~102 µs</span></code></pre>
+  <p>The Government of Canada's Algorithmic Impact Assessment for the ATIP Online Request Service. Its shape:</p>
+<pre class="tree">📦 aitp_info
+ ├── version          'v0.8'
+ ├── currentPage      12
+ └── 📦 data
+      ├── projectDetailsRespondent   'W Herbert'
+      ├── projectDetailsTitle        'ATIP Digital Services'
+      ├── businessDrivers1           ['item2', 'item5']
+      └── … about 80 answers</pre>
+<pre><code>aitp_info['data']['projectDetailsTitle']      <span class="c"># 'ATIP Digital Services'</span>
+aitp_info['data']['businessDrivers1'][0]      <span class="c"># 'item2'</span>
+aitp_info['projectDetailsTitle']              <span class="c"># KeyError, it's inside 'data'</span>
+aitp_info.keys()                              <span class="c"># see what's in this level</span></code></pre>
+  <div class="key"><strong>The rule:</strong> ask "am I holding a list or a dict?" <mark>Dict → <code>['key']</code>, list → <code>[position]</code>.</mark> Repeat until you reach the value.</div>
+  <p><code>%time</code> times one line, and <code>%%time</code> (the first line of a cell) times the whole cell.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>With <code>school = {'location': {'quadrant': 'SE'}, 'grades': [7, 8, 9]}</code>, get <code>'SE'</code> and <code>8</code>.<span class="a"><code>school['location']['quadrant']</code> and <code>school['grades'][1]</code>.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="j5">
+  <h3><span class="n">2.5</span><code>pd.read_json</code></h3>
+<pre><code>import pandas as pd
+%time json_data = pd.read_json("atip-digital-services-aia.json")   <span class="c"># ~22 ms</span>
+json_data</code></pre>
+<pre class="out">                          version  currentPage  data
+projectDetailsRespondent     v0.8           12  W Herbert
+projectDetailsTitle          v0.8           12  ATIP Digital Services
+...
+[80 rows x 3 columns]</pre>
+  <div class="lines">
+    <div><code>3 columns</code><span>The 3 top-level keys.</span></div>
+    <div><code>80 rows</code><span>The keys inside <code>data</code> became row labels.</span></div>
+    <div><code>v0.8 × 80</code><span>A table must be a rectangle, so single values are repeated on every row.</span></div>
+    <div><code>[item6-1]</code><span>Lists get stuck inside cells.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Method</th><th>Time</th><th>Gives</th></tr>
+    <tr><td><code>json.load()</code></td><td>~102 µs</td><td>a dictionary</td></tr>
+    <tr><td><code>pd.read_json()</code></td><td>~22 ms (about 200× slower)</td><td>a DataFrame</td></tr>
+  </table></div>
+  <div class="key"><strong>Rule of thumb:</strong> <mark>many similar records → pandas; one record or deep nesting → json</mark>. Pandas writes JSON with <code>df.to_json()</code>.</div>
+</section>
+
+<section class="step" id="j6">
+  <h3><span class="n">2.6</span>Generated data and <code>indent=4</code></h3>
+<pre><code>with open("generated_data.json") as gen_json:
+    generated_info = json.load(gen_json)
+    print(json.dumps(generated_info, indent=4))
+
+generated_data = pd.read_json("generated_data.json")   <span class="c"># un-comment and run this before the next steps</span></code></pre>
+  <p><code>indent=4</code> pretty-prints with line breaks and 4 spaces per level. It's display only, and the data doesn't change.</p>
+<pre><code>[
+    {
+        "_id": "6179815d6e8e5559873076e3",
+        "name": "Susanna Reynolds",
+        "age": 35,
+        "friends": [
+            {"id": 0, "name": "Edna Herman"},
+            {"id": 1, "name": "Farrell Haley"},
+            {"id": 2, "name": "Joanne House"}
+        ]
+    },
+    ...
+]</code></pre>
+  <div class="tbl"><table>
+    <tr><th></th><th>ATIP file</th><th>Generated file</th></tr>
+    <tr><td>Top level</td><td>a dict</td><td>a list</td></tr>
+    <tr><td>Inside</td><td>one questionnaire</td><td>many people with the same keys</td></tr>
+    <tr><td>Fits a table?</td><td>awkwardly</td><td>yes, except <code>friends</code></td></tr>
+  </table></div>
+<pre><code>generated_info[0]['age']                    <span class="c"># 35</span>
+generated_info[0]['friends'][2]['name']     <span class="c"># 'Joanne House'</span></code></pre>
+</section>
+
+<section class="step" id="j7">
+  <h3><span class="n">2.7</span>Flattening the friends</h3>
+<pre><code>records = []
+
+for friends in generated_data["friends"]:
+    if isinstance(friends, list):
+        for friend in friends:
+            records.append(friend)
+
+new_df = pd.DataFrame(records)</code></pre>
+  <div class="lines">
+    <div><code>records = []</code><span>An empty bin to collect rows.</span></div>
+    <div><code>friends</code> (plural)<span>One person's whole friend list.</span></div>
+    <div><code>isinstance(friends, list)</code><span>"Is it a list?" Skips <code>NaN</code>, which would crash the loop.</span></div>
+    <div><code>friend</code> (singular)<span>One friend dict. This is a loop inside a loop.</span></div>
+    <div><code>.append()</code><span>Adds one item to the end of a list.</span></div>
+    <div><code>pd.DataFrame(records)</code><span>A list of dicts becomes a table: keys → columns, dicts → rows.</span></div>
+  </div>
+  <div class="key"><strong>The problem:</strong> 18 friend rows, but <mark>no link back to the person</mark>. The <code>id</code> just repeats 0, 1, 2.</div>
+</section>
+
+<section class="step" id="j8">
+  <h3><span class="n">2.8</span>Keeping the link with a key</h3>
+<pre><code>records = []
+
+for _, row in generated_data.iterrows():
+    current_key = row["_id"]
+    if isinstance(row["friends"], list):
+        for item in row["friends"]:
+            records.append({
+                "key": current_key,
+                "id": item["id"],
+                "name": item["name"]
+            })
+
+new_df = pd.DataFrame(records)</code></pre>
+  <div class="lines">
+    <div><code>.iterrows()</code><span>Loops over whole rows, so every column is available.</span></div>
+    <div><code>_</code><span>"A value I have to receive but don't need" (the index).</span></div>
+    <div><code>current_key = row["_id"]</code><span><mark>Save the parent's ID before going down.</mark></span></div>
+    <div><code>records.append({...})</code><span>Builds a new dict that includes the person's key.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>People table</th><th>Friends table</th></tr>
+    <tr><td>one row per person</td><td>one row per friend</td></tr>
+    <tr><td><code>_id</code> = primary key</td><td><code>key</code> = foreign key → <code>_id</code></td></tr>
+  </table></div>
+  <p>This is a <strong>one-to-many</strong> relationship, the same idea as a fact table relating to a dimension in Power BI. Names aren't guaranteed unique, so link on IDs and add names for readability.</p>
+</section>
+
+<section class="step" id="j9">
+  <h3><span class="n">2.9</span><code>read_json</code> vs <code>read_csv</code></h3>
+  <p>When the data is flat, they behave the same. The differences appear when the JSON is nested.</p>
+  <div class="tbl"><table>
+    <tr><th></th><th>CSV</th><th>JSON</th></tr>
+    <tr><td>Shape</td><td>always flat</td><td>can nest</td></tr>
+    <tr><td>Types</td><td>all text, pandas guesses</td><td>real numbers, true/false, null, lists</td></tr>
+    <tr><td>Lists</td><td>can't store them</td><td>stores them naturally</td></tr>
+    <tr><td>Into pandas</td><td>clean table</td><td>nested parts stuck in cells</td></tr>
+  </table></div>
+</section>
+
+<section class="step" id="j10">
+  <h3><span class="n">2.10</span>JSON to CSV</h3>
+<pre><code>import csv
+
+name = json_data["name"]
+age = json_data["age"]
+street = json_data["address"]["street"]
+city = json_data["address"]["city"]
+emails = json_data["emails"]
+
+with open('person.csv', "w") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(['name', 'age', 'street', 'city', 'email'])
+    for email in emails:
+        writer.writerow([name, age, street, city, email])</code></pre>
+<pre class="out">name,age,street,city,email
+John,30,123 Main St,Exampleville,john@example.com
+John,30,123 Main St,Exampleville,john@gmail.com</pre>
+  <div class="lines">
+    <div><code>["address"]["street"]</code><span>Flattens the nested address into columns.</span></div>
+    <div><code>csv.writer</code><span>Python lists → CSV file. <code>csv.reader</code> goes the other way.</span></div>
+    <div><code>.writerow([...])</code><span>Writes one row. The first one is the header.</span></div>
+    <div><code>for email in emails</code><span>One row per email, repeating the other details.</span></div>
+  </div>
+  <div class="key"><strong>Rule:</strong> <mark>one of something → columns, many of something → rows.</mark></div>
+</section>
+
+<section class="step" id="j11">
+  <h3><span class="n">2.11</span>Theaters: deep nesting</h3>
+<pre class="tree">theaters (list)
+ └── theater (dict): theater_id, theater_name, location
+      └── showtimes (list)
+           └── showtime (dict): showtime_id, showtime
+                ├── movie (dict): movie_id, title, release_year, rating
+                └── bookings (list)
+                     └── booking (dict): booking_id, seat_number, customer_name</pre>
+<pre><code>movies = []
+for theater in json_data['theaters']:
+    for showtime in theater['showtimes']:
+        movie = showtime['movie']            <span class="c"># a dict, so no loop</span>
+        movies.append([movie['movie_id'], movie['title'],
+                       movie['release_year'], movie['rating']])</code></pre>
+  <div class="key"><strong>Pattern:</strong> <mark>one loop per list on the path down</mark>, and just a key for a dict. If two theaters showed the same movie, you'd get duplicate rows.</div>
+  <h4>Bookings with the theater attached</h4>
+<pre><code>bookings = []
+for theater in json_data['theaters']:              <span class="c"># loop 1</span>
+    theater_id = theater['theater_id']             <span class="c"># save on the way down</span>
+    for showtime in theater['showtimes']:          <span class="c"># loop 2</span>
+        for booking in showtime['bookings']:       <span class="c"># loop 3</span>
+            bookings.append([theater_id, booking['booking_id'],
+                             booking['seat_number'], booking['customer_name']])</code></pre>
+</section>
+
+<section class="step" id="j12">
+  <h3><span class="n">2.12</span>The stack explorer</h3>
+<pre><code>stack = [json_data]
+
+while stack:
+    current = stack.pop()
+    if isinstance(current, dict):
+        for value in current.values():
+            stack.append(value)
+    elif isinstance(current, list):
+        for item in current:
+            stack.append(item)
+    else:
+        print(current)</code></pre>
+  <div class="lines">
+    <div><code>stack = [json_data]</code><span>A pile of plates with one plate: the whole JSON.</span></div>
+    <div><code>while stack:</code><span>Keep going while the pile isn't empty. A <code>for</code> loop runs a fixed number of times, and <code>while</code> runs until its condition is false.</span></div>
+    <div><code>stack.pop()</code><span>Takes the top (last) item off the pile.</span></div>
+    <div><code>dict</code> → <code>.values()</code><span>Opens the box and puts its values back on the pile.</span></div>
+    <div><code>list</code> → items<span>Puts each item on the pile. <code>elif</code> means "else if".</span></div>
+    <div><code>else: print</code><span>A plain <strong>leaf</strong> value that can't be opened.</span></div>
+  </div>
+  <div class="key"><strong>Why the output starts with "Emily Wilson":</strong> <mark>last in, first out</mark>. The last items added are explored first. Keys are thrown away, so this is for exploring, not for building tables.</div>
+</section>
+
+<!-- ============ CLASS 3 ============ -->
+<div class="part" id="class3">
+  <div class="eyebrow">Class 3</div>
+  <h2>Data cleaning with pandas</h2>
+  <p>Hourly weather at Calgary International Airport, January to June 2021, from Environment Canada.</p>
+</div>
+
+<section class="step" id="c1">
+  <h3><span class="n">3.1</span>Downloading the weather data</h3>
+<pre><code>import urllib.request
+import urllib.parse
+from io import StringIO
+
+stationID = 50430
+months = ["01", "02", "03", "04", "05", "06"]
+years = ["2021"]
+base_url = "https://api.weather.gc.ca/collections/climate-hourly/items"
+weather = []
+
+for year in years:
+    for month in months:
+        params = {"STN_ID": stationID, "LOCAL_YEAR": int(year),
+                  "LOCAL_MONTH": int(month), "sortby": "LOCAL_DATE",
+                  "limit": 10000, "f": "csv"}
+        url = base_url + "?" + urllib.parse.urlencode(params)
+
+        with urllib.request.urlopen(url, timeout=90) as response:
+            csv_text = response.read().decode("utf-8-sig")
+
+        lines = csv_text.splitlines()
+        if not lines or "LOCAL_DATE" not in lines[0]:
+            raise ValueError(f"Unexpected response for {year}-{month}")
+
+        monthly_data = pd.read_csv(StringIO(csv_text))
+        if monthly_data.empty:
+            raise ValueError(f"No observations returned for {year}-{month}.")
+        weather.append(monthly_data)</code></pre>
+  <div class="lines">
+    <div><code>urllib.request</code><span>Opens a web address and gets the reply.</span></div>
+    <div><code>urllib.parse.urlencode()</code><span>Turns the <code>params</code> dict into <code>STN_ID=50430&amp;LOCAL_YEAR=2021&amp;…</code>.</span></div>
+    <div><code>stationID = 50430</code><span>Environment Canada's ID for the Calgary airport station.</span></div>
+    <div><code>"f": "csv"</code><span>Asks the API to send the data back as a CSV.</span></div>
+    <div><code>timeout=90</code><span>Give up after 90 seconds with no answer.</span></div>
+    <div><code>.read().decode("utf-8-sig")</code><span>The reply comes as bytes, so this turns it into a string. <code>-sig</code> strips an invisible marker at the start.</span></div>
+    <div><code>.splitlines()</code><span>A string becomes a list of lines, like <code>.readlines()</code>.</span></div>
+    <div><code>raise ValueError(...)</code><span>Deliberately stops the program, because carrying on with bad data would be worse.</span></div>
+    <div><code>StringIO(csv_text)</code><span><mark>Makes a string pretend to be a file</mark>, so <code>pd.read_csv()</code> can read it without saving to disk.</span></div>
+    <div><code>weather.append(...)</code><span>After the loop: a list of <strong>6 DataFrames</strong>, one per month.</span></div>
+  </div>
+  <div class="key"><strong>try/except vs raise:</strong> <code>try/except</code> handles an error and keeps going. <code>raise</code> creates one on purpose and stops.</div>
+</section>
+
+<section class="step" id="c2">
+  <h3><span class="n">3.2</span><code>concat</code> and <code>rename</code></h3>
+<pre><code>weather_df = pd.concat(weather, axis=0, ignore_index=True)
+
+weather_df = weather_df.rename(columns={
+    "LOCAL_DATE": "Date/Time (LST)",
+    "TEMP": "Temp (°C)",
+    "STATION_NAME": "Station Name",
+    "WEATHER_ENG_DESC": "Weather"
+})
+weather_df.head(10)</code></pre>
+  <div class="lines">
+    <div><code>pd.concat(list)</code><span>Joins the 6 tables into one.</span></div>
+    <div><code>axis=0</code><span>Stacks them on top of each other, adding rows (like SQL <code>UNION ALL</code>). <code>axis=1</code> would put them side by side.</span></div>
+    <div><code>ignore_index=True</code><span>Renumbers the rows 0–4340. Without it, each month's 0, 1, 2… would repeat.</span></div>
+    <div><code>.rename(columns={old: new})</code><span>Matches the newer API names to the names the rest of the notebook uses. LST = Local Standard Time.</span></div>
+    <div><code>.head(10)</code> / <code>.tail()</code><span>The first 10 rows (5 by default) / the last rows.</span></div>
+  </div>
+  <div class="key"><strong>Remember:</strong> <mark>a table only changes if you save the result back</mark>. <code>weather_df.rename(...)</code> on its own shows the change, then loses it.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>What would the row numbers look like without <code>ignore_index=True</code>?<span class="a">0, 1, 2… restarting for each month, so the numbers repeat six times.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="c3">
+  <h3><span class="n">3.3</span><code>.info()</code>, dtypes and selecting</h3>
+<pre><code>weather_df.info()</code></pre>
+<pre class="out">RangeIndex: 4341 entries, 0 to 4340
+Data columns (total 41 columns):
+ #   Column            Non-Null Count  Dtype
+ 5   Date/Time (LST)   4341 non-null   object
+ 15  Temp (°C)         4339 non-null   float64
+ 19  HUMIDEX           169 non-null    float64
+ 21  PRECIP_AMOUNT     0 non-null      float64
+ 33  WIND_DIRECTION    4341 non-null   int64</pre>
+  <div class="lines">
+    <div><code>Non-Null Count</code><span>Filled cells. 4341 − 4339 = 2 missing temperatures.</span></div>
+    <div><code>int64</code> / <code>float64</code><span>Whole numbers / decimals.</span></div>
+    <div><code>object</code><span>Usually text. <mark>The dates are stored as text</mark>, which is the first thing to fix.</span></div>
+    <div><code>df['col'].dtype.name</code><span>One column's type as plain text, e.g. <code>'object'</code>.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Code</th><th>Selects</th></tr>
+    <tr><td><code>df['Temp (°C)']</code></td><td>one column → a <strong>Series</strong></td></tr>
+    <tr><td><code>df[['Temp (°C)']]</code></td><td>a list of columns → a <strong>DataFrame</strong> (even with one name)</td></tr>
+    <tr><td><code>df.WIND_SPEED</code></td><td>a shortcut, only for names with no spaces or symbols</td></tr>
+    <tr><td><code>df.loc[5]</code></td><td>the row with <strong>label</strong> 5</td></tr>
+    <tr><td><code>df.iloc[5]</code></td><td>the row at <strong>position</strong> 5</td></tr>
+    <tr><td><code>df.loc[5, 'Temp (°C)']</code></td><td>one cell</td></tr>
+    <tr><td><code>df.loc[:, ['A', 'B']]</code></td><td>all rows (<code>:</code>), two columns</td></tr>
+  </table></div>
+</section>
+
+<section class="step" id="c4">
+  <h3><span class="n">3.4</span>Text to dates: <code>pd.to_datetime</code></h3>
+<pre><code>weather_df['Date/Time (LST)'] = pd.to_datetime(weather_df['Date/Time (LST)'])
+weather_df['Date/Time (LST)'].dtype.name     <span class="c"># 'datetime64[ns]'</span>
+
+df2 = weather_df[weather_df['Date/Time (LST)'] > '2021-01-20']</code></pre>
+  <div class="lines">
+    <div><code>pd.to_datetime()</code><span>The date version of <code>int()</code>: text becomes a real date.</span></div>
+    <div><code>weather_df['...'] =</code><span>Saves it back into the same column.</span></div>
+    <div><code>datetime64[ns]</code><span>A real date and time, stored to the nanosecond. It looks the same when printed, but is stored differently.</span></div>
+    <div><code>&gt; '2021-01-20'</code><span>"Later than." Real dates always compare correctly.</span></div>
+  </div>
+  <div class="key"><strong>The midnight catch:</strong> <code>'2021-01-20'</code> means <code>2021-01-20 00:00</code>. <mark><code>&gt; '2021-01-20'</code> still includes 01:00–23:00 on January 20.</mark> To start from the 21st, use <code>&gt;= '2021-01-21'</code>.</div>
+  <div class="tbl"><table>
+    <tr><th>You want</th><th>Filter</th></tr>
+    <tr><td>Before March 1</td><td><code>&lt; '2021-03-01'</code></td></tr>
+    <tr><td>From April 1, including midnight</td><td><code>&gt;= '2021-04-01'</code></td></tr>
+  </table></div>
+  <p>Read the signs out loud: <code>&gt;</code> is <strong>later</strong>, <code>&lt;</code> is <strong>earlier</strong>.</p>
+</section>
+
+<section class="step" id="c5">
+  <h3><span class="n">3.5</span><code>.dt</code>, <code>set_index</code> and <code>between_time</code></h3>
+<pre><code>df2[df2['Date/Time (LST)'].dt.dayofweek == 6]     <span class="c"># Sundays</span>
+
+morning = weather_df.set_index('Date/Time (LST)').between_time('06:00', '09:00')</code></pre>
+  <div class="lines">
+    <div><code>.dt</code><span>The <strong>date toolbox</strong>. It only works on <code>datetime64</code> columns, so it fails on text.</span></div>
+    <div><code>.dt.dayofweek</code><span>Mon = 0 … Sun = 6.</span></div>
+    <div><code>.set_index('Date/Time (LST)')</code><span>Makes the dates the row labels.</span></div>
+    <div><code>.between_time('06:00', '09:00')</code><span>The 06:00–09:00 readings on <strong>every</strong> day, with both ends included. <mark>Needs a datetime index</mark>, which is why <code>set_index</code> comes first.</span></div>
+  </div>
+<pre><code>.dt.year   .dt.month   .dt.day   .dt.hour   .dt.day_name()   <span class="c"># 'Sunday'</span></code></pre>
+</section>
+
+<section class="step" id="c6">
+  <h3><span class="n">3.6</span>Measuring missing values</h3>
+<pre><code>missing_val = weather_df.isnull().sum()
+total_val = weather_df.shape[0]
+percentage_missing = missing_val / total_val * 100</code></pre>
+  <div class="lines">
+    <div><code>.isnull()</code><span>True/False for every cell. <code>.isna()</code> is the same.</span></div>
+    <div><code>.sum()</code><span>True = 1 and False = 0, so the sum is the missing count per column.</span></div>
+    <div><code>.notnull()</code><span>The opposite: True where a value exists.</span></div>
+    <div><code>.shape</code><span><code>(4341, 41)</code>. <code>[0]</code> = rows, <code>[1]</code> = columns.</span></div>
+    <div><code>/ total * 100</code><span>Percentages for every column at once, with no loop.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Column</th><th>% missing</th><th>Why</th></tr>
+    <tr><td><code>Temp (°C)</code></td><td>0.05% (2 hours)</td><td>a real gap</td></tr>
+    <tr><td><code>Weather</code></td><td>56%</td><td>only filled when something is observed</td></tr>
+    <tr><td><code>WINDCHILL</code></td><td>66%</td><td>only reported when it's cold</td></tr>
+    <tr><td><code>HUMIDEX</code></td><td>96%</td><td>only reported when hot and humid</td></tr>
+    <tr><td><code>_FLAG</code> columns</td><td>~100%</td><td>flags mark problems, so blank is good</td></tr>
+    <tr><td><code>PRECIP_AMOUNT</code></td><td>100%</td><td>not reported in this dataset</td></tr>
+  </table></div>
+  <div class="key"><strong>Ask why before you act:</strong> <mark>missing doesn't always mean broken.</mark> A blank can mean "not applicable."</div>
+</section>
+
+<section class="step" id="c7">
+  <h3><span class="n">3.7</span>Dropping columns</h3>
+<pre><code>weather_df.dropna()                          <span class="c"># ⚠️ any blank in ANY column → 0 rows left here</span>
+weather_df.dropna(subset=['Temp (°C)'])      <span class="c"># only rows missing a temperature</span>
+
+drop_columns = percentage_missing[percentage_missing == 100].index
+weather_dropped = weather_df.drop(columns=drop_columns, inplace=False)     <span class="c"># 41 → 33</span>
+
+threshold = 50
+drop_columns = percentage_missing[percentage_missing &gt; threshold].index
+weather_dropped = weather_df.drop(columns=drop_columns, inplace=False)     <span class="c"># 41 → 26</span></code></pre>
+  <div class="lines">
+    <div><code>percentage_missing == 100</code><span>True for the completely empty columns.</span></div>
+    <div><code>.index</code><span>The column names, because they are the labels of <code>percentage_missing</code>.</span></div>
+    <div><code>.drop(columns=...)</code><span>Removes those columns into a new table.</span></div>
+    <div><code>inplace=False</code><span>Returns a new table. <mark><code>weather_df</code> still has all 41 columns.</mark></span></div>
+  </div>
+  <p>The 50% rule also throws out <code>WINDCHILL</code>, <code>HUMIDEX</code> and <code>Weather</code>, which are useful columns. It's an example threshold, not a rule. Later steps keep using <code>weather_df</code> because they need <code>Weather</code>.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>After both cells, how many columns does <code>weather_df</code> have?<span class="a">41. The results were saved into <code>weather_dropped</code> (26 columns).</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="c8">
+  <h3><span class="n">3.8</span>Imputation: mean, median, interpolate</h3>
+<pre><code>temperature = weather_df.sort_values('Date/Time (LST)').set_index('Date/Time (LST)')['Temp (°C)']
+
+temperature_comparison = pd.DataFrame({
+    'Original': temperature,
+    'Mean filled': temperature.fillna(temperature.mean()),
+    'Median filled': temperature.fillna(temperature.median()),
+    'Interpolated': temperature.interpolate(method='time', limit_area='inside')
+})
+temperature_comparison.loc[temperature.isna()]</code></pre>
+<pre class="out">                     Original  Mean filled  Median filled  Interpolated
+2021-03-10 11:00:00       NaN     3.310671            3.3          -6.2
+2021-03-10 12:00:00       NaN     3.310671            3.3          -6.1</pre>
+  <div class="lines">
+    <div><code>sort_values</code> + <code>set_index</code><span>Time order with dates as labels, which interpolation needs.</span></div>
+    <div><code>pd.DataFrame({...})</code><span>Each key becomes a column.</span></div>
+    <div><code>'Original'</code><span>Kept so you can compare, and see which values were invented.</span></div>
+    <div><code>.fillna(value)</code><span>Replaces every <code>NaN</code> with that value.</span></div>
+    <div><code>.interpolate(method='time')</code><span>Estimates from the neighbouring readings, using real time gaps.</span></div>
+    <div><code>limit_area='inside'</code><span>Only fills gaps with readings on both sides, so it never guesses beyond the start or end.</span></div>
+  </div>
+  <div class="key"><strong>Which wins?</strong> The mean of +3.3°C averages six months, including June. <mark>For a cold March morning, interpolation (−6°C) fits.</mark></div>
+  <div class="tbl"><table>
+    <tr><th>Method</th><th>Good for</th><th>Weakness</th></tr>
+    <tr><td>Mean</td><td>quick, no time order</td><td>ignores context, pulled by extremes</td></tr>
+    <tr><td>Median</td><td>data with outliers</td><td>still ignores context</td></tr>
+    <tr><td>Interpolate</td><td>time series</td><td>needs sorted data, weak for long gaps</td></tr>
+    <tr><td>Zero</td><td>only when 0 is truly right</td><td>0°C is a real temperature</td></tr>
+  </table></div>
+  <p>Wind direction is circular: the average of 350° and 10° is 180° (south), though both are near north. So ordinary averaging doesn't work for it. In the chart cell, <code>pd.Timedelta(hours=6)</code> is a length of time, and <code>plt.subplots(3, 1)</code> stacks three charts.</p>
+</section>
+
+<section class="step" id="c9">
+  <h3><span class="n">3.9</span>SQL-like queries</h3>
+  <div class="tbl"><table>
+    <tr><th>SQL</th><th>pandas</th></tr>
+    <tr><td><code>SELECT a, b</code></td><td><code>df.loc[:, ['a', 'b']]</code> or <code>df[['a', 'b']]</code></td></tr>
+    <tr><td><code>WHERE temp &lt; 10</code></td><td><code>df[df['Temp (°C)'] &lt; 10]</code></td></tr>
+    <tr><td><code>AND</code> / <code>OR</code></td><td><code>(cond1) &amp; (cond2)</code> / <code>(cond1) | (cond2)</code>, brackets required</td></tr>
+    <tr><td><code>ORDER BY temp ASC</code></td><td><code>df.sort_values(by='Temp (°C)', ascending=True)</code></td></tr>
+    <tr><td><code>COUNT(col) … GROUP BY</code></td><td><code>df.groupby('Weather')['Temp (°C)'].count()</code></td></tr>
+    <tr><td><code>COUNT(*) … GROUP BY</code></td><td><code>df.groupby('Weather').size()</code></td></tr>
+    <tr><td><code>LIKE '%Snow%'</code></td><td><code>df['Weather'].str.contains('Snow', na=False, regex=False)</code></td></tr>
+    <tr><td><code>AVG / SUM / MAX / MIN</code></td><td><code>.mean()</code>, <code>.sum()</code>, <code>.max()</code>, <code>.min()</code></td></tr>
+    <tr><td><code>DISTINCT</code></td><td><code>.unique()</code></td></tr>
+    <tr><td><code>TOP 10</code></td><td><code>.head(10)</code></td></tr>
+    <tr><td><code>OFFSET 20 … FETCH NEXT 10</code></td><td><code>df.iloc[20:30]</code> (positions 20–29, stop excluded)</td></tr>
+  </table></div>
+<pre><code>weather_df[weather_df['Temp (°C)'] &lt; -20].sort_values(by='Temp (°C)', ascending=True).head(10)</code></pre>
+  <div class="lines">
+    <div><code>groupby</code> counts<span>Hours, not events. "Snow 185" means 185 hours labelled Snow.</span></div>
+    <div><code>dropna=False</code><span>Includes the blank <code>Weather</code> rows as their own group.</span></div>
+    <div><code>.str</code><span>The text toolbox, like <code>.dt</code> for dates.</span></div>
+    <div><code>na=False</code><span><mark>Blank cells count as no match</mark>. Without it, the filter errors.</span></div>
+    <div><code>regex=False</code><span>Literal text. It's case-sensitive unless you add <code>case=False</code>.</span></div>
+  </div>
+  <p>This isn't SQL. It's pandas doing the same kinds of operations, before the next class covers real SQL.</p>
+</section>
+
+<section class="step" id="c10">
+  <h3><span class="n">3.10</span>Subqueries and JOINs</h3>
+<pre><code>weather_counts = weather_df.groupby('Weather').size()          <span class="c"># inner query</span>
+frequent_weather = weather_counts[weather_counts &gt; 20].index    <span class="c"># HAVING COUNT(*) &gt; 20</span>
+result = weather_df[weather_df['Weather'].isin(frequent_weather)]   <span class="c"># WHERE Weather IN (...)</span></code></pre>
+  <p>Pandas has no subqueries, so you do it in steps and save each one. <code>.isin()</code> is SQL's <code>IN</code>.</p>
+<pre><code>months = pd.DataFrame({'LOCAL_MONTH': [1, 2, 3],
+                       'Month Name': ['January', 'February', 'March']})
+joined = pd.merge(weather_df, months, on='LOCAL_MONTH', how='left')</code></pre>
+  <div class="tbl"><table>
+    <tr><th><code>how=</code></th><th>SQL</th><th>With a Jan–Mar lookup</th></tr>
+    <tr><td><code>'left'</code></td><td>LEFT JOIN</td><td>all 4,341 rows; Apr–Jun get <code>NaN</code></td></tr>
+    <tr><td><code>'inner'</code> (default)</td><td>INNER JOIN</td><td>only Jan–Mar rows</td></tr>
+    <tr><td><code>'right'</code></td><td>RIGHT JOIN</td><td>all rows from the right table</td></tr>
+    <tr><td><code>'outer'</code></td><td>FULL OUTER JOIN</td><td>everything from both</td></tr>
+  </table></div>
+  <div class="key"><strong>pandas vs SQL:</strong> pandas works in memory (RAM), while databases use indexes and optimisation for large or shared data. <code>pd.read_sql_query()</code> reads SQL results into a DataFrame, and <code>df.to_sql()</code> writes one to a table.</div>
+</section>
+
+<!-- ============ REFERENCE ============ -->
+<div class="part" id="reference">
+  <div class="eyebrow">Quick reference</div>
+  <h2>For the night before</h2>
+</div>
+
+<section class="step" id="cheat">
+  <h3><span class="n">R1</span>Cheat sheet</h3>
+  <div class="tbl"><table>
+    <tr><th>Task</th><th>csv library</th><th>pandas</th></tr>
+    <tr><td>Count rows with a value</td><td><code>+= 1</code> with <code>!= ''</code></td><td><code>.count()</code></td></tr>
+    <tr><td>Add up values</td><td><code>+= int(...)</code></td><td><code>.sum()</code></td></tr>
+    <tr><td>Count unique values</td><td><code>set()</code> + <code>len()</code></td><td><code>.nunique()</code></td></tr>
+    <tr><td>See unique values</td><td><code>print(the_set)</code></td><td><code>.unique()</code></td></tr>
+    <tr><td>Filter a year</td><td><code>if row[0] == '...'</code></td><td><code>df[df['School Year'] == '...']</code></td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>JSON task</th><th>Use</th></tr>
+    <tr><td>File → Python</td><td><code>json.load(f)</code></td></tr>
+    <tr><td>String → Python</td><td><code>json.loads(s)</code></td></tr>
+    <tr><td>Python → file</td><td><code>json.dump(obj, f)</code></td></tr>
+    <tr><td>Python → string / pretty print</td><td><code>json.dumps(obj, indent=4)</code></td></tr>
+    <tr><td>Is it a list?</td><td><code>isinstance(x, list)</code></td></tr>
+    <tr><td>What keys are here?</td><td><code>d.keys()</code></td></tr>
+    <tr><td>List of dicts → table</td><td><code>pd.DataFrame(records)</code></td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Cleaning task</th><th>Use</th></tr>
+    <tr><td>Overview of a table</td><td><code>df.info()</code>, <code>df.head()</code>, <code>df.shape</code></td></tr>
+    <tr><td>Stack tables</td><td><code>pd.concat(list, axis=0, ignore_index=True)</code></td></tr>
+    <tr><td>Rename columns</td><td><code>df.rename(columns={'old': 'new'})</code></td></tr>
+    <tr><td>Text → date</td><td><code>pd.to_datetime(df['col'])</code></td></tr>
+    <tr><td>Parts of a date</td><td><code>.dt.month</code>, <code>.dt.dayofweek</code>, <code>.dt.day_name()</code></td></tr>
+    <tr><td>Time window each day</td><td><code>df.set_index('date').between_time('06:00', '09:00')</code></td></tr>
+    <tr><td>% missing per column</td><td><code>df.isnull().sum() / df.shape[0] * 100</code></td></tr>
+    <tr><td>Drop rows missing one column</td><td><code>df.dropna(subset=['col'])</code></td></tr>
+    <tr><td>Drop columns</td><td><code>df.drop(columns=[...])</code></td></tr>
+    <tr><td>Fill gaps</td><td><code>.fillna(value)</code>, <code>.interpolate(method='time')</code></td></tr>
+    <tr><td>Text contains</td><td><code>.str.contains('x', na=False)</code></td></tr>
+    <tr><td>Value in a list</td><td><code>.isin(list)</code></td></tr>
+    <tr><td>Join tables</td><td><code>pd.merge(a, b, on='key', how='left')</code></td></tr>
+  </table></div>
+</section>
+
+<section class="step" id="mistakes">
+  <h3><span class="n">R2</span>Mistakes to avoid</h3>
+  <div class="mistakes">
+    <div><b>Thinking the text disappears when the file closes</b><span>The variable keeps it. Only <code>f.read()</code> fails on a closed file.</span></div>
+    <div><b>Mixing up "closed" and "already read"</b><span>Closed → <code>ValueError</code>. Open but read → <code>''</code>.</span></div>
+    <div><b>Expecting <code>.write()</code> to add a new line</b><span>It doesn't. Add <code>"\n"</code> yourself.</span></div>
+    <div><b>Using <code>'w'</code> when you meant <code>'a'</code></b><span><code>'w'</code> wipes the file first. This happened to <code>test_file.txt</code> and <code>data1.json</code>.</span></div>
+    <div><b>Doing maths on CSV text</b><span>Wrap it in <code>int()</code>, and check for <code>''</code> first.</span></div>
+    <div><b>Filtering on a value without looking at the column</b><span><code>'2020_2021'</code> vs <code>'2020-2021'</code>. Run <code>.unique()</code> first.</span></div>
+    <div><b><code>.count()</code> when you meant <code>.sum()</code> or <code>.nunique()</code></b><span>Decide first: counting rows, counting distinct values, or adding values?</span></div>
+    <div><b>Skipping a level in nested JSON</b><span><code>aitp_info['projectDetailsTitle']</code> fails because it's inside <code>'data'</code>.</span></div>
+    <div><b>Using a key on a list</b><span><code>['friends']['name']</code> fails. Lists need a position: <code>['friends'][0]['name']</code>.</span></div>
+    <div><b>Keys without quotes, or dots between brackets</b><span>Write <code>['friends']</code>, not <code>[friends]</code> or <code>.['name']</code>. Names are case-sensitive.</span></div>
+    <div><b>Naming a variable <code>filter</code></b><span>It covers up a built-in. Use <code>filtered</code>.</span></div>
+    <div><b>Expecting a method to change the table on its own</b><span><code>rename</code>, <code>drop</code> and <code>to_datetime</code> only stick if you save the result with <code>=</code>.</span></div>
+    <div><b>Forgetting a date means midnight</b><span><code>&gt; '2021-01-20'</code> still includes most of January 20.</span></div>
+    <div><b>Flipping <code>&lt;</code> and <code>&gt;</code> for dates</b><span><code>&lt;</code> is earlier (before), <code>&gt;</code> is later (after).</span></div>
+    <div><b>Running <code>.dropna()</code> on the whole table</b><span>One fully empty column means every row gets removed. Use <code>subset=</code>.</span></div>
+    <div><b>Filling a time series with the mean</b><span>It ignores context. Interpolate between neighbours instead.</span></div>
+    <div><b>Confusing <code>df['a']</code> with <code>df[['a']]</code></b><span>Single brackets give a Series, and double brackets give a DataFrame.</span></div>
+    <div><b>Mixing up left and inner joins</b><span><code>left</code> keeps every left-table row. <code>inner</code> keeps only matches.</span></div>
+  </div>
+</section>
+
+<section class="step" id="project">
+  <h3><span class="n">R3</span>Team project notes</h3>
+  <p><strong>Investigating Topics in Big Data:</strong> the team picks a topic beyond the course material, researches it, and presents it with <strong>interactive elements</strong> (demos, exercises, quizzes) for classmates.</p>
+  <div class="tbl"><table>
+    <tr><th>Option</th><th>Why</th></tr>
+    <tr><td><strong>Column-based databases</strong> (first choice)</td><td>Ties to daily work: VertiPaq in Power BI, Parquet and Delta in Fabric. Easy demo: row vs column storage, or CSV vs Parquet in Python.</td></tr>
+    <tr><td><strong>Stream-based databases</strong> (second choice)</td><td>More of a stretch. Relevant to Calgary energy sensors and Fabric Real-Time Intelligence.</td></tr>
+  </table></div>
+  <p><strong>Still to confirm with the instructor:</strong> team size, presentation length, written deliverables, rubric, due dates.</p>
+</section>
+
+<footer>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON) and Class 3 (Data cleaning).<br>
+  <a class="totop" href="#start">Back to top</a>
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+(function(){
+  var rail=document.getElementById('rail'),btn=document.getElementById('menuBtn');
+  var links=[].slice.call(rail.querySelectorAll('.navgroup a'));
+  function closeMenu(){rail.classList.remove('open');btn.setAttribute('aria-expanded','false');btn.textContent='Contents';}
+  btn.addEventListener('click',function(){
+    var open=rail.classList.toggle('open');
+    btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=open?'Close':'Contents';
+  });
+  links.forEach(function(a){a.addEventListener('click',closeMenu);});
+
+  // Filter the contents by keyword (matches link text and the section's text)
+  var input=document.getElementById('navFilter'),none=document.getElementById('noMatch');
+  var index=links.map(function(a){
+    var id=a.getAttribute('href').slice(1),sec=document.getElementById(id);
+    return {a:a,li:a.parentNode,text:(a.textContent+' '+(sec?sec.textContent:'')).toLowerCase()};
+  });
+  input.addEventListener('input',function(){
+    var q=input.value.trim().toLowerCase(),shown=0;
+    index.forEach(function(it){var m=!q||it.text.indexOf(q)>-1;it.li.hidden=!m;if(m)shown++;});
+    [].slice.call(rail.querySelectorAll('.navgroup')).forEach(function(g){
+      g.hidden=!![].slice.call(g.querySelectorAll('li')).every(function(li){return li.hidden;});
+    });
+    none.hidden=shown>0;
+  });
+
+  // Highlight the section in view
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  if('IntersectionObserver' in window){
+    var obs=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting&&map[e.target.id]){
+          links.forEach(function(l){l.classList.remove('active');});
+          map[e.target.id].classList.add('active');
+        }
+      });
+    },{rootMargin:'-20% 0px -70% 0px'});
+    Object.keys(map).forEach(function(id){var s=document.getElementById(id);if(s)obs.observe(s);});
+  }
+
+  // Open the section named in the link, if any
+  if(location.hash){var t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView();}
+})();
+</script>
+
+</body>
+</html>
