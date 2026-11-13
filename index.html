@@ -145,7 +145,7 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
 
 <div class="shell">
 <nav class="rail" id="rail" aria-label="Contents">
-  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON, data cleaning and databases, step by step</small></div>
+  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON, data cleaning, databases and SQL, step by step</small></div>
   <label for="navFilter" class="visually-hidden" style="position:absolute;left:-9999px">Filter topics</label>
   <input class="filter" id="navFilter" type="search" placeholder="Find a topic, e.g. strip, nunique" autocomplete="off">
 
@@ -223,6 +223,20 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#a3"><span class="n">5.3</span>MySQL/MariaDB &amp; MongoDB tools</a></li>
       <li><a href="#a4"><span class="n">5.4</span>The 6 steps in code</a></li>
       <li><a href="#a5"><span class="n">5.5</span>INSERT vs LOAD</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 6 · Subqueries &amp; windows</h2>
+    <ol>
+      <li><a href="#q1"><span class="n">6.1</span>The dataset &amp; backticks</a></li>
+      <li><a href="#q2"><span class="n">6.2</span>Subquery: a single value</a></li>
+      <li><a href="#q3"><span class="n">6.3</span>Subquery: a list (IN, HAVING)</a></li>
+      <li><a href="#q4"><span class="n">6.4</span>Subquery: a table, and CTEs</a></li>
+      <li><a href="#q5"><span class="n">6.5</span>ORDER BY</a></li>
+      <li><a href="#q6"><span class="n">6.6</span>Windows: OVER, PARTITION BY</a></li>
+      <li><a href="#q7"><span class="n">6.7</span>RANK, DENSE_RANK, ROW_NUMBER</a></li>
+      <li><a href="#q8"><span class="n">6.8</span>LAG and LEAD</a></li>
+      <li><a href="#q9"><span class="n">6.9</span>SQL order of operations</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -1329,6 +1343,288 @@ conn.close()                                   <span class="c"># 6. Disconnect</
   </table></div>
 </section>
 
+<!-- ============ CLASS 6 ============ -->
+<div class="part" id="class6">
+  <div class="eyebrow">Class 6</div>
+  <h2>Subqueries, window functions and query order</h2>
+  <p>Lecture 5 (night). Every example uses the City of Calgary pet licence table, <code>workspace.default.licensed_pets</code>, with columns <code>COMMUNITY NAME</code>, <code>ANIMAL</code> (CATS or DOGS), <code>LICENSE VOLUME</code> and <code>my_date</code>.</p>
+</div>
+
+<section class="step" id="q1">
+  <h3><span class="n">6.1</span>The dataset and the backticks</h3>
+  <div class="lines">
+    <div><code>`LICENSE VOLUME`</code><span>The column names contain <strong>spaces</strong>. Without backticks SQL reads two separate words and errors. Backticks are the Databricks/Spark way to quote a name. T-SQL uses <code>[LICENSE VOLUME]</code>.</span></div>
+    <div><code>workspace.default.licensed_pets</code><span>A three-part name, <strong>catalog.schema.table</strong> (Databricks Unity Catalog). Like <code>database.schema.table</code> in SQL Server.</span></div>
+  </div>
+  <p>A <strong>subquery</strong> is a query inside another query. The inner query runs, and the outer query uses its result as if you had typed it in. What the subquery returns decides where it can go:</p>
+  <div class="tbl"><table>
+    <tr><th>Subquery returns</th><th>Shape</th><th>Goes with</th></tr>
+    <tr><td>A single value</td><td>1 row × 1 column</td><td><code>&gt;</code>, <code>&lt;</code>, <code>=</code> in <code>WHERE</code></td></tr>
+    <tr><td>A list</td><td>many rows × 1 column</td><td><code>IN</code> in <code>WHERE</code></td></tr>
+    <tr><td>A table</td><td>many rows × many columns</td><td><code>FROM</code> (or a CTE)</td></tr>
+  </table></div>
+</section>
+
+<section class="step" id="q2">
+  <h3><span class="n">6.2</span>A subquery that returns a single value</h3>
+  <p>Start with a hard-coded filter:</p>
+<pre><code>SELECT `COMMUNITY NAME`, `LICENSE VOLUME`
+FROM workspace.default.licensed_pets
+WHERE `LICENSE VOLUME` &gt; 34</code></pre>
+  <p>Where did 34 come from? Someone worked it out by hand. If the data changes, it goes stale, and nobody reading the query knows what it means. Let a query calculate it instead:</p>
+<pre><code>SELECT `COMMUNITY NAME`, `LICENSE VOLUME`
+FROM workspace.default.licensed_pets
+WHERE `LICENSE VOLUME` &gt; (
+    SELECT AVG(`LICENSE VOLUME`) FROM workspace.default.licensed_pets
+);</code></pre>
+  <div class="lines">
+    <div><code>1. Inner query</code><span>Runs first. <code>AVG</code> with no <code>GROUP BY</code> collapses the table to <strong>one number</strong>, e.g. 250.24.</span></div>
+    <div><code>2. Swap</code><span>SQL effectively replaces the brackets with that number: <code>WHERE LICENSE VOLUME &gt; 250.24</code>.</span></div>
+    <div><code>3. Outer query</code><span>Returns only the above-average rows.</span></div>
+  </div>
+  <p>The inner query has to run first because the outer <code>WHERE</code> can't filter until it knows the number it's comparing against.</p>
+  <div class="key"><strong>Remember:</strong> <code>&gt;</code> compares against one value, so <mark>the subquery must return exactly one row and one column</mark> (a <em>scalar subquery</em>). Add <code>GROUP BY ANIMAL</code> inside and it returns 2 rows, which raises "subquery returned more than one value".</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Why is the subquery better than typing 34?<span class="a">It recalculates every time, so it never goes stale, and it shows what the threshold means ("above average").</span></li>
+    <li>Write a query for every row below the maximum licence volume.<span class="a"><code>SELECT `COMMUNITY NAME`, `LICENSE VOLUME` FROM licensed_pets WHERE `LICENSE VOLUME` &lt; (SELECT MAX(`LICENSE VOLUME`) FROM licensed_pets);</code></span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q3">
+  <h3><span class="n">6.3</span>A subquery that returns a list: <code>IN</code></h3>
+  <p><code>IN</code> keeps a row if its value matches <strong>any</strong> item in a list. It's shorthand for several <code>OR</code>s. A hard-coded list has the same problem as the hard-coded 34, so build the list with a query:</p>
+<pre><code>SELECT * FROM workspace.default.licensed_pets
+WHERE `COMMUNITY NAME` IN (
+    SELECT `COMMUNITY NAME`
+    FROM workspace.default.licensed_pets
+    GROUP BY `COMMUNITY NAME`
+    HAVING SUM(`LICENSE VOLUME`) &gt; 500
+);</code></pre>
+  <div class="lines">
+    <div><code>GROUP BY COMMUNITY NAME</code><span>One group per community (cats and dogs together).</span></div>
+    <div><code>SUM(LICENSE VOLUME)</code><span>Adds cats and dogs within each community.</span></div>
+    <div><code>HAVING ... &gt; 500</code><span>Keeps only communities whose total is above 500.</span></div>
+    <div><code>SELECT COMMUNITY NAME</code><span>Outputs <strong>one column, many rows</strong>: the list.</span></div>
+  </div>
+  <p>The subquery only decides <strong>which communities qualify</strong>. The outer query then returns every <em>original</em> row for them. If Acadia has 478 cats and 300 dogs (778 &gt; 500), both Acadia rows come back: <strong>2 rows</strong>.</p>
+  <div class="vs">
+    <div class="no"><span class="lbl">WHERE</span>Filters <strong>individual rows, before grouping</strong>. <code>SUM(...)</code> doesn't exist yet, so <code>WHERE SUM(...) &gt; 500</code> fails.</div>
+    <div class="ok"><span class="lbl">HAVING</span>Filters <strong>groups, after aggregation</strong>. If the condition uses <code>SUM</code>, <code>AVG</code> or <code>COUNT</code>, it goes here.</div>
+  </div>
+  <div class="key"><strong>Trap:</strong> if a <code>NOT IN</code> list contains even one <code>NULL</code>, <mark><code>NOT IN</code> returns no rows at all</mark>. Filter out NULLs in the subquery or use <code>NOT EXISTS</code>.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Why must an <code>IN</code> subquery return exactly one column?<span class="a"><code>IN</code> matches one column against a list. With two columns SQL wouldn't know which to match.</span></li>
+    <li>Return all rows for communities whose <em>average</em> licence volume is below 100.<span class="a"><code>SELECT * FROM licensed_pets WHERE community_name IN (SELECT community_name FROM licensed_pets GROUP BY community_name HAVING AVG(license_volume) &lt; 100);</code></span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q4">
+  <h3><span class="n">6.4</span>A subquery that returns a table, and CTEs</h3>
+  <p>Question: <em>for cats vs dogs, what's the average number of licences per community?</em> That needs two levels: <strong>SUM</strong> per animal per community, then <strong>AVG</strong> of those sums. <code>AVG(SUM(...))</code> isn't allowed, so do the first step in a subquery in <code>FROM</code> (a <strong>derived table</strong>):</p>
+<pre><code>SELECT ANIMAL, AVG(total) AS avg_community_total
+FROM (
+    SELECT ANIMAL, `COMMUNITY NAME`, SUM(`LICENSE VOLUME`) AS total
+    FROM workspace.default.licensed_pets
+    GROUP BY ANIMAL, `COMMUNITY NAME`
+) AS community_totals
+GROUP BY ANIMAL;</code></pre>
+  <div class="lines">
+    <div><code>Inner query</code><span>One row per animal + community. With 200 communities that each have both animals: <strong>400 rows</strong>.</span></div>
+    <div><code>Outer query</code><span><strong>Groups</strong> by animal and averages <code>total</code>: <strong>2 rows</strong>. (Grouping collapses rows; filtering removes them.)</span></div>
+    <div><code>AS total</code><span>Names the sum so the outer query can refer to it.</span></div>
+    <div><code>AS community_totals</code><span>Names the derived table. Most databases, including SQL Server, require it.</span></div>
+  </div>
+  <p>Filtering on a derived table works with plain <code>WHERE</code>, even on a sum:</p>
+<pre><code>SELECT customer_id, total_amount
+FROM (
+    SELECT customer_id, SUM(amount) AS total_amount
+    FROM orders
+    GROUP BY customer_id
+) AS t
+WHERE total_amount &gt; 400
+ORDER BY customer_id;</code></pre>
+  <p>It works because the sum was already calculated inside. To the outer query, <code>total_amount</code> is just an ordinary column.</p>
+  <p>A <strong>CTE</strong> (<code>WITH</code>) moves the subquery to the top and gives it a name. The result is the same:</p>
+<pre><code>WITH community_totals AS (
+    SELECT ANIMAL, `COMMUNITY NAME`, SUM(`LICENSE VOLUME`) AS total
+    FROM workspace.default.licensed_pets
+    GROUP BY ANIMAL, `COMMUNITY NAME`
+)
+SELECT ANIMAL, AVG(total) AS avg_community_total
+FROM community_totals
+GROUP BY ANIMAL;</code></pre>
+  <div class="tbl"><table>
+    <tr><th></th><th>CTE (<code>WITH</code>)</th><th>Subquery</th></tr>
+    <tr><td>Where it lives</td><td>At the top, named</td><td>Inline, inside the query</td></tr>
+    <tr><td>Readability</td><td>Top to bottom, like steps</td><td>Inside-out; messy when nested</td></tr>
+    <tr><td>Reuse</td><td>Can be referenced more than once</td><td>Rewritten each time</td></tr>
+    <tr><td>Best for</td><td>Complex, multi-step logic</td><td>Quick, single-use logic</td></tr>
+  </table></div>
+  <div class="key"><strong>Good practice (slide 25):</strong> <mark>run the inner query on its own first</mark>, check what it returns, then wrap the outer query around it. It catches wrong groupings and wrong column names straight away.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Write a CTE of total licences per community (all animals combined) and keep totals over 1000.<span class="a"><code>WITH community_totals AS (SELECT community_name, SUM(license_volume) AS total FROM licensed_pets GROUP BY community_name) SELECT community_name, total FROM community_totals WHERE total &gt; 1000;</code><br>Don't group by animal too: that splits cats and dogs. And the alias must match exactly: <code>total</code>, not <code>totals</code>.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q5">
+  <h3><span class="n">6.5</span><code>ORDER BY</code></h3>
+  <p><code>ASC</code> is smallest first (A→Z) and is the default. <code>DESC</code> is largest first.</p>
+<pre><code>ORDER BY ANIMAL ASC, total DESC;</code></pre>
+  <p>SQL sorts by the <strong>first</strong> column. The second only <strong>breaks ties</strong> in the first: all cats come before dogs, and within each animal the biggest totals are at the top.</p>
+<pre><code>SELECT ANIMAL, SUM(`LICENSE VOLUME`) FROM workspace.default.licensed_pets
+WHERE my_date BETWEEN '2019-01-01' AND '2019-01-27'
+GROUP BY ANIMAL
+ORDER BY SUM(`LICENSE VOLUME`) DESC;</code></pre>
+  <p><code>BETWEEN</code> is <strong>inclusive</strong>: both end dates count. You can order by an aggregate (or an alias) because <code>ORDER BY</code> runs after <code>SELECT</code> (see 6.9).</p>
+  <div class="tbl"><table>
+    <tr><th>Rule</th><th>Why</th></tr>
+    <tr><td>No <code>ORDER BY</code> = no guaranteed order</td><td>The database returns rows however is fastest, and it can change between runs, especially on Databricks/Spark.</td></tr>
+    <tr><td>Put <code>ORDER BY</code> in the <strong>outermost</strong> query</td><td>An <code>ORDER BY</code> inside a subquery or CTE doesn't carry through; SQL Server even rejects it.</td></tr>
+    <tr><td>Aggregate first, then sort</td><td>Sorting millions of raw rows is expensive; sorting 2 totals is free.</td></tr>
+  </table></div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>What does <code>ORDER BY community_name DESC, animal ASC</code> do for a community with both animals?<span class="a">Communities go Z→A. Within one community the name ties, so CATS comes before DOGS.</span></li>
+    <li>Order the totals-over-1000 CTE highest first, ties alphabetical.<span class="a"><code>ORDER BY total DESC, community_name ASC</code></span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q6">
+  <h3><span class="n">6.6</span>Window functions: <code>OVER</code> and <code>PARTITION BY</code></h3>
+  <div class="vs">
+    <div class="no"><span class="lbl">GROUP BY</span>Many rows go in and <strong>collapse into one</strong>. The detail is lost.</div>
+    <div class="ok"><span class="lbl">Window function</span>Every row stays, and gets an <strong>extra column</strong> with an aggregate over its group (the window).</div>
+  </div>
+  <p>So a window function <mark>summarizes without collapsing</mark>: the detail row and the group total side by side. That's what you need for "what share of all cat licences does Abbeydale hold?"</p>
+<pre><code>SELECT `COMMUNITY NAME`, `LICENSE VOLUME`,
+       100.0 * `LICENSE VOLUME` / SUM(`LICENSE VOLUME`) OVER () AS PERCENTAGE_LIC
+FROM workspace.default.licensed_pets;</code></pre>
+  <div class="lines">
+    <div><code>OVER ()</code><span>Empty brackets: the window is the <strong>whole table</strong>. Every row gets the same grand total (cats + dogs).</span></div>
+    <div><code>100.0</code><span>Forces decimal maths. Integer ÷ integer can give 0 in many databases.</span></div>
+  </div>
+<pre><code>SELECT `COMMUNITY NAME`, `LICENSE VOLUME`, ANIMAL,
+       100.0 * `LICENSE VOLUME` / SUM(`LICENSE VOLUME`) OVER (PARTITION BY ANIMAL) AS PERCENTAGE_LIC
+FROM workspace.default.licensed_pets;</code></pre>
+  <p><code>PARTITION BY ANIMAL</code> gives one window per animal: cat rows divide by the cat total, dog rows by the dog total. Think of it as <strong>GROUP BY without the collapsing</strong>.</p>
+  <div class="tbl"><table>
+    <tr><th>Abbeydale cats (230)</th><th>Denominator</th><th>Percentage</th></tr>
+    <tr><td><code>OVER ()</code></td><td>grand total (bigger)</td><td>smaller</td></tr>
+    <tr><td><code>OVER (PARTITION BY ANIMAL)</code></td><td>cat total (smaller)</td><td><strong>bigger</strong></td></tr>
+  </table></div>
+  <div class="key"><strong>Bigger denominator → smaller percentage.</strong> 400 rows in means 400 rows out with a window; <code>GROUP BY ANIMAL</code> would give 2.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Add a column with the average licence volume for each row's animal.<span class="a"><code>SELECT community_name, animal, license_volume, AVG(license_volume) OVER (PARTITION BY animal) AS avg_for_animal FROM licensed_pets;</code><br><code>OVER ()</code> would mix cats and dogs. <code>OVER (animal)</code> is a syntax error: the keyword <code>PARTITION BY</code> is required.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q7">
+  <h3><span class="n">6.7</span>Ranking: <code>RANK</code>, <code>DENSE_RANK</code>, <code>ROW_NUMBER</code></h3>
+  <div class="tbl"><table>
+    <tr><th>Family</th><th>Functions</th><th>Answers</th></tr>
+    <tr><td>Aggregate</td><td><code>SUM</code>, <code>AVG</code>, <code>COUNT</code>, <code>MIN</code>, <code>MAX</code></td><td>What's the group total or average?</td></tr>
+    <tr><td>Ranking</td><td><code>ROW_NUMBER</code>, <code>RANK</code>, <code>DENSE_RANK</code>, <code>PERCENT_RANK</code>, <code>NTILE</code></td><td>Where does this row sit in the order?</td></tr>
+    <tr><td>Value</td><td><code>LAG</code>, <code>LEAD</code>, <code>FIRST_VALUE</code>, <code>LAST_VALUE</code></td><td>What's in the row before or after?</td></tr>
+  </table></div>
+<pre><code>SELECT community_name, animal, license_volume,
+       RANK() OVER (PARTITION BY animal ORDER BY license_volume DESC) AS rnk
+FROM licensed_pets;</code></pre>
+  <p>Ranking needs <code>ORDER BY</code> inside <code>OVER</code>: an average doesn't care about order, but "who's number 1?" has no answer until you say what you rank by. <code>RANK()</code> takes no column.</p>
+  <div class="tbl"><table>
+    <tr><th>Volume</th><th>RANK</th><th>DENSE_RANK</th><th>ROW_NUMBER</th></tr>
+    <tr><td>900</td><td>1</td><td>1</td><td>1</td></tr>
+    <tr><td>800</td><td>2</td><td>2</td><td>2</td></tr>
+    <tr><td>800</td><td>2</td><td>2</td><td>3</td></tr>
+    <tr><td>800</td><td>2</td><td>2</td><td>4</td></tr>
+    <tr><td>600</td><td><strong>5</strong></td><td><strong>3</strong></td><td>5</td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>RANK</code><span>Ties share a rank, then it <strong>skips</strong> (sports standings).</span></div>
+    <div><code>DENSE_RANK</code><span>Ties share a rank, <strong>no gap</strong>.</span></div>
+    <div><code>ROW_NUMBER</code><span>Always unique. Which tied row gets which number is <strong>arbitrary</strong>, so add a tie-breaker if it matters.</span></div>
+  </div>
+  <p><strong>Top-N per group:</strong> you can't put a window function in <code>WHERE</code>, so rank in a CTE and filter outside:</p>
+<pre><code>WITH ranking AS (
+    SELECT community_name, license_volume, animal,
+           ROW_NUMBER() OVER (PARTITION BY animal ORDER BY license_volume DESC) AS rn
+    FROM licensed_pets
+)
+SELECT *
+FROM ranking
+WHERE rn = 1;          <span class="c">-- one biggest community per animal</span></code></pre>
+  <div class="key"><strong>Remember:</strong> ranking only <em>numbers</em> the rows. <mark>You still have to filter on the number</mark> (<code>WHERE rn = 1</code>); <code>ORDER BY rn</code> only sorts. Avoid <code>rank</code> as an alias, since it's also a function name.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>You need exactly one row per group, no duplicates ever. Which function?<span class="a"><code>ROW_NUMBER</code>. <code>RANK</code> gives tied rows the same number, so <code>= 1</code> could return two.</span></li>
+    <li>"Top 3 per animal, including ties"?<span class="a"><code>RANK</code> or <code>DENSE_RANK</code>, filtered with <code>&lt;= 3</code> in an outer query.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q8">
+  <h3><span class="n">6.8</span>Value functions: <code>LAG</code> and <code>LEAD</code></h3>
+  <p><code>LAG(col)</code> fetches the value from the <strong>previous</strong> row; <code>LEAD(col)</code> from the <strong>next</strong>. Both need <code>ORDER BY</code> to define "previous".</p>
+<pre><code>SELECT t, value,
+       LAG(value, 1) OVER (ORDER BY t) AS lag1,
+       LAG(value, 2) OVER (ORDER BY t) AS lag2
+FROM series;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>t</th><th>value</th><th>lag1</th><th>lag2</th><th>LEAD(value)</th></tr>
+    <tr><td>1</td><td>5</td><td>NULL</td><td>NULL</td><td>10</td></tr>
+    <tr><td>2</td><td>10</td><td>5</td><td>NULL</td><td>15</td></tr>
+    <tr><td>3</td><td>15</td><td>10</td><td>5</td><td>NULL</td></tr>
+  </table></div>
+  <p>The second argument is how many rows to move (default 1). The slides write <code>NaN</code> (pandas); SQL gives <code>NULL</code>.</p>
+<pre><code>SELECT `COMMUNITY NAME`, ANIMAL, my_date, `LICENSE VOLUME`,
+       `LICENSE VOLUME`
+         - LAG(`LICENSE VOLUME`) OVER (PARTITION BY `COMMUNITY NAME`, ANIMAL
+                                       ORDER BY my_date) AS change
+FROM workspace.default.licensed_pets;</code></pre>
+  <div class="lines">
+    <div><code>PARTITION BY COMMUNITY NAME, ANIMAL</code><span>Compare Acadia cats only with earlier Acadia cats. Without it, the "previous row" could be any community or animal.</span></div>
+    <div><code>ORDER BY my_date</code><span>"Previous" means the earlier date. The first date in each partition gets <code>NULL</code> change.</span></div>
+  </div>
+  <div class="key"><strong>Remember:</strong> <mark>the first argument is <em>what to fetch</em>; the <code>ORDER BY</code> decides <em>which row is next</em></mark>. <code>LEAD(my_date)</code> returns the next <em>date</em>; <code>LEAD(`LICENSE VOLUME`)</code> returns the next <em>volume</em>.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Add <code>next_volume</code>: the next date's volume for the same community and animal.<span class="a"><code>LEAD(`LICENSE VOLUME`) OVER (PARTITION BY `COMMUNITY NAME`, ANIMAL ORDER BY my_date) AS next_volume</code></span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="q9">
+  <h3><span class="n">6.9</span>SQL order of operations</h3>
+  <p>SQL is <strong>declarative</strong>: you say what you want and the database decides how. The order you <em>write</em> clauses isn't the order they <em>run</em>.</p>
+  <div class="tbl"><table>
+    <tr><th>How you write it</th><th>How it runs</th></tr>
+    <tr><td>SELECT</td><td><strong>1. FROM</strong>: get the table</td></tr>
+    <tr><td>FROM</td><td><strong>2. WHERE</strong>: filter rows</td></tr>
+    <tr><td>WHERE</td><td><strong>3. GROUP BY</strong>: form groups</td></tr>
+    <tr><td>GROUP BY</td><td><strong>4. HAVING</strong>: filter groups</td></tr>
+    <tr><td>HAVING</td><td><strong>5. SELECT</strong>: columns, aggregates, aliases, window functions</td></tr>
+    <tr><td>ORDER BY</td><td><strong>6. ORDER BY</strong>: sort</td></tr>
+    <tr><td>LIMIT</td><td><strong>7. LIMIT</strong>: keep N rows</td></tr>
+  </table></div>
+  <p>Every rule in this class comes from that table:</p>
+  <div class="tbl"><table>
+    <tr><th>Rule</th><th>Why</th></tr>
+    <tr><td><code>WHERE SUM(...)</code> fails</td><td>WHERE is step 2; sums appear at step 5</td></tr>
+    <tr><td><code>HAVING SUM(...)</code> works</td><td>HAVING is step 4, after grouping</td></tr>
+    <tr><td>Can't filter a window result in WHERE</td><td>Windows are computed in SELECT, step 5</td></tr>
+    <tr><td>Filter <code>rn = 1</code> in an outer query</td><td>The CTE has finished, so <code>rn</code> is a normal column</td></tr>
+    <tr><td>ORDER BY can use aliases and aggregates</td><td>ORDER BY is step 6, after SELECT</td></tr>
+    <tr><td><code>WHERE doubled &gt; 500</code> fails</td><td>The alias is created at step 5, after WHERE</td></tr>
+  </table></div>
+<pre><code><span class="c">-- Fix 1: repeat the expression (the raw column exists at WHERE)</span>
+SELECT community_name, license_volume * 2 AS doubled
+FROM licensed_pets
+WHERE license_volume * 2 &gt; 500;
+
+<span class="c">-- Fix 2: wrap it and filter outside (the only option for window functions)</span>
+WITH t AS (SELECT community_name, license_volume * 2 AS doubled FROM licensed_pets)
+SELECT * FROM t WHERE doubled &gt; 500;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>an alias made in SELECT works in ORDER BY but not in WHERE</mark>. Brackets around <code>license_volume * 2</code> don't change that.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Put these in execution order: ORDER BY, HAVING, FROM, SELECT, GROUP BY, WHERE.<span class="a">FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY.</span></li>
+    <li>Why does <code>ORDER BY doubled DESC</code> work when <code>WHERE doubled &gt; 500</code> doesn't?<span class="a">ORDER BY runs after SELECT has created the alias; WHERE runs before.</span></li>
+  </ol></div></details>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -1385,6 +1681,21 @@ conn.close()                                   <span class="c"># 6. Disconnect</
     <tr><td>The 6 steps</td><td>connect, cursor, stage, run, commit, disconnect</td></tr>
     <tr><td>INSERT vs LOAD</td><td>safe, row by row / fast, bulk, fewer checks</td></tr>
   </table></div>
+  <div class="tbl"><table>
+    <tr><th>SQL task</th><th>Use</th></tr>
+    <tr><td>Compare with one calculated value</td><td><code>WHERE x &gt; (SELECT AVG(x) FROM t)</code></td></tr>
+    <tr><td>Match a calculated list</td><td><code>WHERE x IN (SELECT ... GROUP BY ... HAVING ...)</code></td></tr>
+    <tr><td>Filter groups</td><td><code>HAVING SUM(x) &gt; 500</code> (not WHERE)</td></tr>
+    <tr><td>Aggregate an aggregate</td><td>Subquery in <code>FROM ( ... ) AS t</code>, or a CTE</td></tr>
+    <tr><td>Name a step</td><td><code>WITH name AS ( ... ) SELECT ... FROM name</code></td></tr>
+    <tr><td>Sort, with a tie-breaker</td><td><code>ORDER BY total DESC, name ASC</code></td></tr>
+    <tr><td>Group total on every row</td><td><code>SUM(x) OVER (PARTITION BY g)</code></td></tr>
+    <tr><td>Grand total on every row</td><td><code>SUM(x) OVER ()</code></td></tr>
+    <tr><td>Rank within a group</td><td><code>RANK() OVER (PARTITION BY g ORDER BY x DESC)</code></td></tr>
+    <tr><td>Exactly one row per group</td><td><code>ROW_NUMBER()</code> in a CTE, then <code>WHERE rn = 1</code></td></tr>
+    <tr><td>Previous / next row's value</td><td><code>LAG(x)</code> / <code>LEAD(x) OVER (PARTITION BY g ORDER BY date)</code></td></tr>
+    <tr><td>Execution order</td><td>FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT</td></tr>
+  </table></div>
 </section>
 
 <section class="step" id="mistakes">
@@ -1414,6 +1725,16 @@ conn.close()                                   <span class="c"># 6. Disconnect</
     <div><b>Naming a product when asked for a model</b><span>"Document model, e.g. MongoDB", not just "MongoDB".</span></div>
     <div><b>Calling Python the API</b><span>Python uses a connector, which talks to the database through its API.</span></div>
     <div><b>Forgetting to commit</b><span>Changes may be rolled back when you disconnect.</span></div>
+    <div><b>Column names that don't match</b><span><code>totals</code> vs <code>total</code>, <code>license_volumes</code>, <code>animal</code> vs <code>animal_type</code>. Copy names from the <code>SELECT</code> list.</span></div>
+    <div><b><code>WHERE</code> on an aggregate or an alias</b><span>WHERE runs before SELECT. Use <code>HAVING</code>, repeat the expression, or wrap it in a CTE.</span></div>
+    <div><b>A scalar subquery that returns several rows</b><span><code>&gt;</code> needs one value. A <code>GROUP BY</code> inside makes it a list.</span></div>
+    <div><b>Grouping by too many columns</b><span>"All animals combined" means group by community only.</span></div>
+    <div><b><code>ORDER BY</code> inside a CTE</b><span>It doesn't carry through. Sort in the final query.</span></div>
+    <div><b><code>OVER (animal)</code></b><span>The keyword is required: <code>OVER (PARTITION BY animal)</code>.</span></div>
+    <div><b>Ranking without filtering</b><span><code>ORDER BY rn</code> only sorts. Keep the top row with <code>WHERE rn = 1</code>.</span></div>
+    <div><b>Using <code>RANK</code> when you need one row</b><span>Ties share a rank. Use <code>ROW_NUMBER</code>.</span></div>
+    <div><b><code>LEAD(my_date)</code> for the next volume</b><span>The first argument is what you fetch. The <code>ORDER BY</code> decides "next".</span></div>
+    <div><b>Bigger denominator, bigger percentage?</b><span>No: dividing by a bigger total gives a smaller share.</span></div>
   </div>
 </section>
 
@@ -1429,7 +1750,7 @@ conn.close()                                   <span class="c"># 6. Disconnect</
 </section>
 
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview) and Class 5 (Accessing databases).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases) and Class 6 (Subqueries, window functions and query order).<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
