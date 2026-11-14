@@ -240,12 +240,16 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
     </ol>
   </div>
   <div class="navgroup">
-    <h2>Class 7 · CASE, NTILE &amp; LAG</h2>
+    <h2>Class 7 · CASE, NTILE, LAG &amp; functions</h2>
     <ol>
       <li><a href="#k1"><span class="n">7.1</span>CASE: categorizing</a></li>
       <li><a href="#k2"><span class="n">7.2</span>CASE: pivoting</a></li>
       <li><a href="#k3"><span class="n">7.3</span>NTILE: equal bands</a></li>
       <li><a href="#k4"><span class="n">7.4</span>LAG with dates, DATEDIFF</a></li>
+      <li><a href="#k5"><span class="n">7.5</span>Why write your own functions</a></li>
+      <li><a href="#k6"><span class="n">7.6</span>UDFs vs stored functions</a></li>
+      <li><a href="#k7"><span class="n">7.7</span>Writing an aggregate</a></li>
+      <li><a href="#k8"><span class="n">7.8</span>Stored procedures</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -1637,8 +1641,8 @@ SELECT * FROM t WHERE doubled &gt; 500;</code></pre>
 <!-- ============ CLASS 7 ============ -->
 <div class="part" id="class7">
   <div class="eyebrow">Class 7</div>
-  <h2>CASE, NTILE and LAG</h2>
-  <p>MariaDB examples from an in-class activity. <strong>Not tested on the exam</strong>, but used constantly in real work and interviews.</p>
+  <h2>CASE, NTILE, LAG and custom functions</h2>
+  <p>Steps 7.1–7.4 are MariaDB examples from an in-class activity (<strong>not tested on the exam</strong>, but used constantly in real work). Steps 7.5–7.8 cover the <em>Customizing SQL with your own functions</em> lecture: UDFs, stored functions, aggregates and stored procedures.</p>
 </div>
 
 <section class="step" id="k1">
@@ -1813,6 +1817,145 @@ FROM changes;</code></pre>
   </ol></div></details>
 </section>
 
+<section class="step" id="k5">
+  <h3><span class="n">7.5</span>Why write your own functions</h3>
+  <p>From the <em>Customizing SQL with your own functions</em> lecture. <code>AS</code> lets you define your own <strong>column</strong>. But what if you run the <strong>same query over and over with a different value</strong>?</p>
+<pre><code>SELECT SUM(license_volume) FROM licensed_pets WHERE community_name = 'Acadia';
+SELECT SUM(license_volume) FROM licensed_pets WHERE community_name = 'Abbeydale';
+<span class="c">-- ...copied for every community</span></code></pre>
+  <p>Copies are repetitive, easy to get wrong, and every copy needs fixing when the logic changes. <mark>A function with a parameter: write the logic once, pass in the part that changes.</mark></p>
+  <div class="tbl"><table>
+    <tr><th>Permission</th><th>Lets you</th></tr>
+    <tr><td><strong>Create</strong> (MariaDB: <code>CREATE ROUTINE</code>)</td><td>Define new functions and procedures</td></tr>
+    <tr><td><strong>EXECUTE</strong></td><td>Run one someone else made</td></tr>
+    <tr><td><strong>GRANT</strong> privileges</td><td>Needed to hand out the two above (usually an admin / DBA)</td></tr>
+  </table></div>
+<pre><code>GRANT CREATE ROUTINE ON data604.* TO 'mariam'@'localhost';
+GRANT EXECUTE ON data604.* TO 'mariam'@'localhost';</code></pre>
+  <p>Restricted because a function runs <strong>inside the server</strong> for everyone: a bad one can slow the database or expose data.</p>
+</section>
+
+<section class="step" id="k6">
+  <h3><span class="n">7.6</span>UDFs vs stored functions</h3>
+  <div class="tbl"><table>
+    <tr><th></th><th>User-defined function (UDF)</th><th>Stored function</th></tr>
+    <tr><td>Written in</td><td><strong>C/C++</strong></td><td><strong>SQL</strong></td></tr>
+    <tr><td>Lives</td><td>Compiled code installed on the server</td><td>Saved inside the database</td></tr>
+    <tr><td>Use when</td><td>The task is hard or impossible in SQL</td><td>It's doable in SQL; you want to reuse it</td></tr>
+    <tr><td>Risk</td><td><strong>A bug can crash the whole server</strong></td><td>Lower</td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>Why not recompile the server?</code><span>You'd maintain your own MariaDB and redo it every upgrade. A UDF plugs in without touching the source.</span></div>
+    <div><code>Why only C/C++?</code><span>MariaDB is written in C/C++, so the code loads straight into the server; it's compiled and fast (it may run once per row); and no Python/Java runtime is needed inside the server.</span></div>
+  </div>
+<pre><code>DELIMITER //
+
+CREATE FUNCTION community_total(c VARCHAR(100))
+RETURNS INT
+READS SQL DATA
+BEGIN
+  DECLARE t INT;
+  SELECT SUM(license_volume) INTO t
+  FROM licensed_pets
+  WHERE community_name = c;
+  RETURN t;
+END //
+
+DELIMITER ;
+
+SELECT community_total('Acadia');</code></pre>
+  <div class="lines">
+    <div><code>DELIMITER //</code><span>The body has several <code>;</code>s. Without this, the client ends the <code>CREATE</code> at the first one.</span></div>
+    <div><code>(c VARCHAR(100))</code><span>The parameter and its type.</span></div>
+    <div><code>RETURNS INT</code><span>Declares the <strong>type</strong> of the result. No calculation here.</span></div>
+    <div><code>DECLARE t INT</code><span>A local variable.</span></div>
+    <div><code>SELECT ... INTO t</code><span>Stores the result in the variable instead of displaying it.</span></div>
+    <div><code>RETURN t</code><span><strong>Sends back</strong> the value.</span></div>
+  </div>
+  <p>A single-statement function needs no <code>BEGIN/END</code> or <code>DELIMITER</code>, because its only <code>;</code> is at the end:</p>
+<pre><code>CREATE FUNCTION doubled(x INT)
+RETURNS INT DETERMINISTIC
+RETURN x * 2;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>a stored function returns a single (scalar) value</mark>, so it fits anywhere a value can: <code>SELECT doubled(license_volume)</code>. <code>DETERMINISTIC</code> = same input, same output (uses only its inputs). <code>community_total</code> isn't, because the table can change.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>What's the difference between <code>RETURNS</code> and <code>RETURN</code>?<span class="a"><code>RETURNS INT</code> declares the result's type. <code>RETURN x * 2</code> calculates and sends back the value.</span></li>
+    <li>A complex image-processing calculation SQL can't express: UDF or stored function?<span class="a">UDF. Risk: a bug in compiled code can crash the whole server.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="k7">
+  <h3><span class="n">7.7</span>Writing an aggregate: what it reveals</h3>
+<pre><code>DELIMITER //
+
+CREATE AGGREGATE FUNCTION my_sum(x INT)
+RETURNS INT
+BEGIN
+  DECLARE total INT DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN total;
+  LOOP
+    FETCH GROUP NEXT ROW;                <span class="c">-- next row of the group</span>
+    IF x IS NOT NULL THEN
+      SET total = total + x;
+    END IF;
+  END LOOP;
+END //
+
+DELIMITER ;</code></pre>
+  <div class="key"><strong>An aggregate is a loop with a running state.</strong> <mark>It reads a group one row at a time, keeps a small memory, and returns one value when the rows run out.</mark></div>
+  <div class="tbl"><table>
+    <tr><th>Aggregate</th><th>Running state</th><th>Update on each non-NULL row</th></tr>
+    <tr><td><code>SUM</code></td><td>total, starts at 0</td><td><code>total = total + x</code></td></tr>
+    <tr><td><code>COUNT</code></td><td>count, starts at 0</td><td><code>count = count + 1</code></td></tr>
+    <tr><td><code>MAX</code></td><td>biggest, starts NULL</td><td>if NULL or <code>x &gt; biggest</code>, <code>biggest = x</code></td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>Why skip NULLs?</code><span><code>total + NULL</code> = NULL, and it stays NULL, so one missing value would wipe out the whole group's sum.</span></div>
+    <div><code>Why rows collapse</code><span>It returns only once per group, at the end.</span></div>
+    <div><code>Why no AVG(SUM(x))</code><span>That would be a loop inside a loop over the same rows; use a subquery or CTE.</span></div>
+    <div><code>Big data</code><span><code>SUM</code>, <code>COUNT</code>, <code>MIN</code>, <code>MAX</code> need one pass and little memory, and partial results from different machines can be combined. <code>AVG</code> = SUM ÷ COUNT, so it combines too. A <strong>median</strong> can't, so it's expensive at scale.</span></div>
+  </div>
+</section>
+
+<section class="step" id="k8">
+  <h3><span class="n">7.8</span>Stored procedures</h3>
+  <p>When you always run a <strong>set of queries together</strong>, bundle them into a procedure.</p>
+<pre><code>DELIMITER //
+
+CREATE PROCEDURE community_report(IN c VARCHAR(100))
+BEGIN
+  SELECT animal, SUM(license_volume) AS total
+  FROM licensed_pets
+  WHERE community_name = c
+  GROUP BY animal;
+
+  SELECT COUNT(*) AS records
+  FROM licensed_pets
+  WHERE community_name = c;
+END //
+
+DELIMITER ;
+
+CALL community_report('Acadia');</code></pre>
+  <div class="tbl"><table>
+    <tr><th></th><th>Stored function</th><th>Stored procedure</th></tr>
+    <tr><td>Returns</td><td>Exactly one value</td><td>Zero, one or many result sets</td></tr>
+    <tr><td>Run with</td><td>Inside a query: <code>SELECT f(x)</code></td><td>On its own: <code>CALL p(x)</code></td></tr>
+    <tr><td>Changes data?</td><td>Generally no</td><td>Yes (INSERT, UPDATE, DELETE)</td></tr>
+    <tr><td>Use for</td><td>A reusable calculation</td><td>A reusable routine or workflow</td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>More secure</code><span>Give <code>EXECUTE</code> on the procedure <strong>without</strong> <code>SELECT</code> on the table. The procedure runs with its creator's rights, so users get the approved result but can't browse raw data.</span></div>
+    <div><code>More consistent</code><span>The logic lives in the database, so Python, Java, C and Power BI all call the same thing: <code>cur.execute("CALL community_report(%s)", ("Acadia",))</code>. One place to update.</span></div>
+  </div>
+<pre><code><span class="c">-- Analyst sees the summary, not the raw table</span>
+GRANT EXECUTE ON PROCEDURE data604.monthly_summary TO 'analyst'@'localhost';
+<span class="c">-- and do NOT grant SELECT on licensed_pets</span></code></pre>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Function or procedure? (a) volume as a % of a total, (b) nightly delete-load-log job, (c) a High/Medium/Low label.<span class="a">(a) function, (b) procedure, (c) function: a reusable <code>CASE</code>.</span></li>
+    <li>What three parts make the "summary without raw data" setup work?<span class="a">Create the procedure; grant EXECUTE on it; don't grant SELECT on the table.</span></li>
+  </ol></div></details>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -1887,6 +2030,10 @@ FROM changes;</code></pre>
     <tr><td>Pivot rows to columns</td><td><code>SUM(CASE WHEN q = 'Q1' THEN v END) AS Q1</code> + <code>GROUP BY</code></td></tr>
     <tr><td>Split into equal bands</td><td><code>NTILE(4) OVER (ORDER BY x)</code></td></tr>
     <tr><td>Days since previous event</td><td><code>DATEDIFF(d, LAG(d) OVER (PARTITION BY id ORDER BY d))</code> (MariaDB)</td></tr>
+    <tr><td>Reusable calculation</td><td><code>CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x * 2;</code></td></tr>
+    <tr><td>Multi-statement body</td><td><code>DELIMITER //</code> ... <code>BEGIN ... END //</code> <code>DELIMITER ;</code></td></tr>
+    <tr><td>Reusable routine</td><td><code>CREATE PROCEDURE p(IN c ...) BEGIN ... END</code>, run with <code>CALL p('x');</code></td></tr>
+    <tr><td>Let someone run it</td><td><code>GRANT EXECUTE ON ...</code> (MariaDB create right: <code>CREATE ROUTINE</code>)</td></tr>
   </table></div>
 </section>
 
@@ -1934,6 +2081,10 @@ FROM changes;</code></pre>
     <div><b>Assuming NTILE group 4 is always the top</b><span>Group 1 is whatever ORDER BY puts first. <code>DESC</code> flips it.</span></div>
     <div><b>Using a SELECT alias in the same SELECT</b><span>Columns are computed together. Repeat the expression or use a CTE.</span></div>
     <div><b>DATEDIFF arguments the wrong way round</b><span>MariaDB: (later, earlier). SQL Server: (day, earlier, later). Negative days = flipped.</span></div>
+    <div><b>Calculating in <code>RETURNS</code></b><span><code>RETURNS INT</code> is only the type. The maths goes in <code>RETURN x * 2</code>.</span></div>
+    <div><b>Forgetting <code>DELIMITER</code></b><span>A <code>BEGIN ... END</code> body with several <code>;</code>s gets cut off at the first one.</span></div>
+    <div><b>Thinking EXECUTE alone secures the data</b><span>Also create the procedure and don't grant SELECT on the table.</span></div>
+    <div><b>Not skipping NULLs in a custom aggregate</b><span><code>total + NULL</code> = NULL, which wipes out the whole group.</span></div>
   </div>
 </section>
 
@@ -1949,7 +2100,7 @@ FROM changes;</code></pre>
 </section>
 
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order) and Class 7 (CASE, NTILE and LAG).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order) and Class 7 (CASE, NTILE, LAG and custom functions).<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
