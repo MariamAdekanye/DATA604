@@ -240,6 +240,15 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
     </ol>
   </div>
   <div class="navgroup">
+    <h2>Class 7 · CASE, NTILE &amp; LAG</h2>
+    <ol>
+      <li><a href="#k1"><span class="n">7.1</span>CASE: categorizing</a></li>
+      <li><a href="#k2"><span class="n">7.2</span>CASE: pivoting</a></li>
+      <li><a href="#k3"><span class="n">7.3</span>NTILE: equal bands</a></li>
+      <li><a href="#k4"><span class="n">7.4</span>LAG with dates, DATEDIFF</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
     <h2>Quick reference</h2>
     <ol>
       <li><a href="#cheat"><span class="n">R1</span>Cheat sheet</a></li>
@@ -1625,6 +1634,185 @@ SELECT * FROM t WHERE doubled &gt; 500;</code></pre>
   </ol></div></details>
 </section>
 
+<!-- ============ CLASS 7 ============ -->
+<div class="part" id="class7">
+  <div class="eyebrow">Class 7</div>
+  <h2>CASE, NTILE and LAG</h2>
+  <p>MariaDB examples from an in-class activity. <strong>Not tested on the exam</strong>, but used constantly in real work and interviews.</p>
+</div>
+
+<section class="step" id="k1">
+  <h3><span class="n">7.1</span><code>CASE</code>: categorizing rows</h3>
+  <p><code>CASE</code> is SQL's <strong>if / else if / else</strong>, like a nested <code>IF</code> in Excel or <code>SWITCH</code> in DAX.</p>
+<pre><code>SELECT name, age,
+  CASE
+    WHEN age &lt; 13 THEN 'Child'
+    WHEN age BETWEEN 13 AND 19 THEN 'Teen'
+    ELSE 'Adult'
+  END AS age_group
+FROM people;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>name</th><th>age</th><th>age_group</th></tr>
+    <tr><td>Ava</td><td>7</td><td>Child</td></tr>
+    <tr><td>Ben</td><td>14</td><td>Teen</td></tr>
+    <tr><td>Cara</td><td>22</td><td>Adult</td></tr>
+    <tr><td>Dan</td><td>35</td><td>Adult</td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>WHEN ... THEN</code><span><strong>WHEN</strong> = what's in the data now; <strong>THEN</strong> = the label you want instead.</span></div>
+    <div><code>ELSE</code><span>Used when no <code>WHEN</code> matched. Leave it out and those rows get <code>NULL</code>.</span></div>
+    <div><code>END</code><span>Required. Forgetting it is the most common syntax error.</span></div>
+  </div>
+  <div class="key"><strong>Remember:</strong> <mark>the first matching WHEN wins</mark>, so put the strictest condition first. With <code>WHEN &gt;= 200 THEN 'Medium'</code> before <code>WHEN &gt;= 500 THEN 'High'</code>, 'High' never appears.</div>
+<pre><code>SELECT `COMMUNITY NAME`, `LICENSE VOLUME`,
+  CASE
+    WHEN `LICENSE VOLUME` &gt;= 500 THEN 'High'
+    WHEN `LICENSE VOLUME` &gt;= 200 THEN 'Medium'   <span class="c">-- only rows under 500 get here</span>
+    ELSE 'Low'
+  END AS volume_band
+FROM workspace.default.licensed_pets;</code></pre>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>What do ages 13 and 19 get?<span class="a">Teen. <code>BETWEEN</code> is inclusive.</span></li>
+    <li>Label CATS as 'Cat', DOGS as 'Dog', anything else 'Unknown'.<span class="a"><code>CASE WHEN ANIMAL = 'CATS' THEN 'Cat' WHEN ANIMAL = 'DOGS' THEN 'Dog' ELSE 'Unknown' END AS animal_label</code><br>Use <code>=</code>, not <code>is</code> (<code>IS</code> is only for NULL), and quote all text.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="k2">
+  <h3><span class="n">7.2</span><code>CASE</code>: pivoting rows into columns</h3>
+  <p>Long data (one row per region per quarter) becomes wide (quarters side by side), like a Power BI matrix.</p>
+<pre><code>SELECT region,
+  SUM(CASE WHEN quarter = 'Q1' THEN revenue END) AS Q1_revenue,
+  SUM(CASE WHEN quarter = 'Q2' THEN revenue END) AS Q2_revenue
+FROM sales
+GROUP BY region;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>region</th><th>quarter</th><th>revenue</th><th>Q1 CASE</th><th>Q2 CASE</th></tr>
+    <tr><td>East</td><td>Q1</td><td>2000</td><td><strong>2000</strong></td><td>NULL</td></tr>
+    <tr><td>East</td><td>Q2</td><td>2500</td><td>NULL</td><td><strong>2500</strong></td></tr>
+    <tr><td>West</td><td>Q1</td><td>3000</td><td><strong>3000</strong></td><td>NULL</td></tr>
+    <tr><td>West</td><td>Q2</td><td>3200</td><td>NULL</td><td><strong>3200</strong></td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>1. CASE</code><span>Runs on every row. No ELSE, so other quarters become NULL: each CASE is a filter for one column.</span></div>
+    <div><code>2. GROUP BY region</code><span>One row per region.</span></div>
+    <div><code>3. SUM</code><span>Adds each column within the group. <strong>SUM ignores NULLs</strong>, so East Q1 = 2000.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Version</th><th>Region with no Q2 data</th></tr>
+    <tr><td><code>THEN revenue END</code></td><td><code>NULL</code> ("no data")</td></tr>
+    <tr><td><code>THEN revenue ELSE 0 END</code></td><td><code>0</code> ("zero revenue"); safer for maths like <code>cats - dogs</code></td></tr>
+  </table></div>
+  <p><strong>Which communities have more cats than dogs?</strong> Pivot, then filter outside (aliases can't be used in WHERE):</p>
+<pre><code>WITH pivoted AS (
+  SELECT `COMMUNITY NAME`,
+    SUM(CASE WHEN ANIMAL = 'CATS' THEN `LICENSE VOLUME` ELSE 0 END) AS cats,
+    SUM(CASE WHEN ANIMAL = 'DOGS' THEN `LICENSE VOLUME` ELSE 0 END) AS dogs
+  FROM workspace.default.licensed_pets
+  GROUP BY `COMMUNITY NAME`
+)
+SELECT `COMMUNITY NAME`, cats, dogs, (cats - dogs) AS difference
+FROM pivoted
+WHERE cats &gt; dogs
+ORDER BY difference DESC;</code></pre>
+  <div class="key"><strong>MariaDB trap:</strong> drop <code>GROUP BY region</code> and most databases error. <mark>MariaDB's default settings return one row with an arbitrary region</mark> next to the overall totals, which looks like a real answer. (<code>ONLY_FULL_GROUP_BY</code> makes it strict.)</div>
+</section>
+
+<section class="step" id="k3">
+  <h3><span class="n">7.3</span><code>NTILE</code>: equal bands</h3>
+  <p><code>NTILE(n)</code> sorts the rows and deals them into <strong>n roughly equal groups</strong>: 4 = quartiles, 10 = deciles.</p>
+<pre><code>SELECT name, total_sales,
+       NTILE(4) OVER (ORDER BY total_sales) AS sales_quartile
+FROM employee_sales;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>name</th><th>total_sales</th><th>ASC quartile</th><th>DESC quartile</th></tr>
+    <tr><td>Alex</td><td>3000</td><td>1</td><td>4</td></tr>
+    <tr><td>Bea</td><td>4500</td><td>1</td><td>3</td></tr>
+    <tr><td>Chen</td><td>7000</td><td>2</td><td>2</td></tr>
+    <tr><td>Dana</td><td>9000</td><td>2</td><td>2</td></tr>
+    <tr><td>Eli</td><td>12000</td><td>3</td><td>1</td></tr>
+    <tr><td>Finn</td><td>16000</td><td>4</td><td>1</td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark>group 1 always holds whatever ORDER BY puts first</mark>. With <code>DESC</code>, the top seller is in group 1.</div>
+  <p><strong>Uneven splits:</strong> rows ÷ n, and leftovers go to the lowest-numbered groups first.</p>
+  <div class="tbl"><table>
+    <tr><th>Rows</th><th>NTILE(4) group sizes</th></tr>
+    <tr><td>6</td><td>6 ÷ 4 = 1 r 2 → <strong>2, 2, 1, 1</strong></td></tr>
+    <tr><td>7</td><td>7 ÷ 4 = 1 r 3 → <strong>2, 2, 2, 1</strong></td></tr>
+  </table></div>
+  <div class="vs">
+    <div class="ok"><span class="lbl">CASE bands</span>Fixed thresholds you choose. Use when the values mean something ("500+ is high"). Group sizes can be uneven.</div>
+    <div class="ok"><span class="lbl">NTILE bands</span>Relative position ("top 25% of rows"). Roughly equal sizes. Ties can be split across groups; <code>RANK</code> never does that.</div>
+  </div>
+<pre><code>WITH totals AS (
+  SELECT `COMMUNITY NAME`, SUM(`LICENSE VOLUME`) AS total
+  FROM workspace.default.licensed_pets
+  GROUP BY `COMMUNITY NAME`
+),
+banded AS (                                   <span class="c">-- one WITH, CTEs separated by commas</span>
+  SELECT `COMMUNITY NAME`, total,
+         NTILE(4) OVER (ORDER BY total) AS quartile
+  FROM totals
+)
+SELECT * FROM banded
+WHERE quartile = 4                            <span class="c">-- top 25%; middle performers: BETWEEN 2 AND 3</span>
+ORDER BY total DESC;</code></pre>
+</section>
+
+<section class="step" id="k4">
+  <h3><span class="n">7.4</span><code>LAG</code> with dates: time between events</h3>
+<pre><code>SELECT user_id, order_date,
+       LAG(order_date) OVER (PARTITION BY user_id ORDER BY order_date) AS prev_order,
+       DATEDIFF(order_date,
+                LAG(order_date) OVER (PARTITION BY user_id ORDER BY order_date)) AS days_since_prev
+FROM orders;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>user_id</th><th>order_date</th><th>prev_order</th><th>days_since_prev</th></tr>
+    <tr><td>1</td><td>2025-01-05</td><td>NULL</td><td>NULL</td></tr>
+    <tr><td>1</td><td>2025-01-10</td><td>2025-01-05</td><td>5</td></tr>
+    <tr><td>1</td><td>2025-01-20</td><td>2025-01-10</td><td>10</td></tr>
+    <tr><td>2</td><td>2025-02-01</td><td>NULL</td><td>NULL</td></tr>
+    <tr><td>2</td><td>2025-02-12</td><td>2025-02-01</td><td>11</td></tr>
+  </table></div>
+  <div class="lines">
+    <div><code>PARTITION BY user_id</code><span>User 2's first order doesn't look back at user 1.</span></div>
+    <div><code>Why LAG twice?</code><span><mark>All SELECT columns are computed at the same time</mark>, so <code>prev_order</code> can't be used in the same SELECT. Repeat the expression or use a CTE.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Database</th><th>Days between dates</th></tr>
+    <tr><td>MariaDB / MySQL</td><td><code>DATEDIFF(later, earlier)</code></td></tr>
+    <tr><td>Databricks / Spark</td><td><code>datediff(later, earlier)</code></td></tr>
+    <tr><td>SQL Server</td><td><code>DATEDIFF(day, earlier, later)</code></td></tr>
+  </table></div>
+  <p>Negative results mean the arguments are the wrong way round. Uses: intervals, trends, <strong>churn detection</strong> (a regular customer suddenly goes quiet).</p>
+<pre><code><span class="c">-- Year-over-year change per animal: aggregate first, then LAG the totals</span>
+WITH yearly AS (
+  SELECT ANIMAL, YEAR(my_date) AS yr, SUM(`LICENSE VOLUME`) AS total
+  FROM workspace.default.licensed_pets
+  GROUP BY ANIMAL, YEAR(my_date)
+)
+SELECT ANIMAL, yr, total,
+       total - LAG(total) OVER (PARTITION BY ANIMAL ORDER BY yr) AS change_vs_last_year
+FROM yearly;</code></pre>
+<pre><code><span class="c">-- Did a community drop since the previous reporting day? LAG + CASE</span>
+WITH changes AS (
+  SELECT `COMMUNITY NAME`, ANIMAL, my_date, `LICENSE VOLUME`,
+         `LICENSE VOLUME` - LAG(`LICENSE VOLUME`) OVER (PARTITION BY `COMMUNITY NAME`, ANIMAL
+                                                        ORDER BY my_date) AS change
+  FROM workspace.default.licensed_pets
+)
+SELECT *,
+  CASE WHEN change &lt; 0 THEN 'Drop'
+       WHEN change &gt; 0 THEN 'Rise'
+       WHEN change = 0 THEN 'No change'
+       ELSE 'First record'            <span class="c">-- NULL matches no WHEN</span>
+  END AS trend
+FROM changes;</code></pre>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>User 2 orders again on 2025-02-20. What are <code>prev_order</code> and <code>days_since_prev</code>?<span class="a">2025-02-12 and 8.</span></li>
+    <li>In the year-over-year query, what goes inside <code>LAG( )</code>?<span class="a"><code>total</code>, the value to fetch. <code>yr</code> goes in ORDER BY to define "previous".</span></li>
+  </ol></div></details>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -1695,6 +1883,10 @@ SELECT * FROM t WHERE doubled &gt; 500;</code></pre>
     <tr><td>Exactly one row per group</td><td><code>ROW_NUMBER()</code> in a CTE, then <code>WHERE rn = 1</code></td></tr>
     <tr><td>Previous / next row's value</td><td><code>LAG(x)</code> / <code>LEAD(x) OVER (PARTITION BY g ORDER BY date)</code></td></tr>
     <tr><td>Execution order</td><td>FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT</td></tr>
+    <tr><td>Label rows by condition</td><td><code>CASE WHEN x &gt;= 500 THEN 'High' ... ELSE 'Low' END</code></td></tr>
+    <tr><td>Pivot rows to columns</td><td><code>SUM(CASE WHEN q = 'Q1' THEN v END) AS Q1</code> + <code>GROUP BY</code></td></tr>
+    <tr><td>Split into equal bands</td><td><code>NTILE(4) OVER (ORDER BY x)</code></td></tr>
+    <tr><td>Days since previous event</td><td><code>DATEDIFF(d, LAG(d) OVER (PARTITION BY id ORDER BY d))</code> (MariaDB)</td></tr>
   </table></div>
 </section>
 
@@ -1735,6 +1927,13 @@ SELECT * FROM t WHERE doubled &gt; 500;</code></pre>
     <div><b>Using <code>RANK</code> when you need one row</b><span>Ties share a rank. Use <code>ROW_NUMBER</code>.</span></div>
     <div><b><code>LEAD(my_date)</code> for the next volume</b><span>The first argument is what you fetch. The <code>ORDER BY</code> decides "next".</span></div>
     <div><b>Bigger denominator, bigger percentage?</b><span>No: dividing by a bigger total gives a smaller share.</span></div>
+    <div><b><code>WHEN ANIMAL is CAT</code></b><span>Use <code>=</code> and quotes: <code>WHEN ANIMAL = 'CATS'</code>. <code>IS</code> is only for NULL.</span></div>
+    <div><b>Swapping WHEN and THEN values</b><span>WHEN = what's in the data; THEN = the new label.</span></div>
+    <div><b>Loose condition first in CASE</b><span>The first match wins. Put <code>&gt;= 500</code> before <code>&gt;= 200</code>.</span></div>
+    <div><b>Subtracting a NULL</b><span><code>cats - NULL</code> is NULL. Use <code>ELSE 0</code> when you'll do maths.</span></div>
+    <div><b>Assuming NTILE group 4 is always the top</b><span>Group 1 is whatever ORDER BY puts first. <code>DESC</code> flips it.</span></div>
+    <div><b>Using a SELECT alias in the same SELECT</b><span>Columns are computed together. Repeat the expression or use a CTE.</span></div>
+    <div><b>DATEDIFF arguments the wrong way round</b><span>MariaDB: (later, earlier). SQL Server: (day, earlier, later). Negative days = flipped.</span></div>
   </div>
 </section>
 
@@ -1750,7 +1949,7 @@ SELECT * FROM t WHERE doubled &gt; 500;</code></pre>
 </section>
 
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases) and Class 6 (Subqueries, window functions and query order).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order) and Class 7 (CASE, NTILE and LAG).<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
