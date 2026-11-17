@@ -145,7 +145,7 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
 
 <div class="shell">
 <nav class="rail" id="rail" aria-label="Contents">
-  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON, data cleaning, databases and SQL, step by step</small></div>
+  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON, data cleaning, databases, SQL and MongoDB, step by step</small></div>
   <label for="navFilter" class="visually-hidden" style="position:absolute;left:-9999px">Filter topics</label>
   <input class="filter" id="navFilter" type="search" placeholder="Find a topic, e.g. strip, nunique" autocomplete="off">
 
@@ -250,6 +250,19 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#k6"><span class="n">7.6</span>UDFs vs stored functions</a></li>
       <li><a href="#k7"><span class="n">7.7</span>Writing an aggregate</a></li>
       <li><a href="#k8"><span class="n">7.8</span>Stored procedures</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 8 · MongoDB with PyMongo</h2>
+    <ol>
+      <li><a href="#m1"><span class="n">8.1</span>Cards, drawers, cabinets</a></li>
+      <li><a href="#m2"><span class="n">8.2</span>Connecting: Python vs shell</a></li>
+      <li><a href="#m3"><span class="n">8.3</span>find, sort, skip, limit</a></li>
+      <li><a href="#m4"><span class="n">8.4</span>AND, OR, lists ($all)</a></li>
+      <li><a href="#m5"><span class="n">8.5</span>$not, $exists, messy values</a></li>
+      <li><a href="#m6"><span class="n">8.6</span>Collation &amp; $regex</a></li>
+      <li><a href="#m7"><span class="n">8.7</span>Aggregation pipelines</a></li>
+      <li><a href="#m8"><span class="n">8.8</span>$group &amp; $unwind</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -1956,6 +1969,218 @@ GRANT EXECUTE ON PROCEDURE data604.monthly_summary TO 'analyst'@'localhost';
   </ol></div></details>
 </section>
 
+<!-- ============ CLASS 8 ============ -->
+<div class="part" id="class8">
+  <div class="eyebrow">Class 8</div>
+  <h2>MongoDB with PyMongo</h2>
+  <p>Querying the <code>sample_mflix</code> database (movies, comments, theaters). Each example is shown in the <strong>shell</strong> (mongosh, JavaScript), which you can paste into Compass. Step 8.2 shows how the Python notebook version differs.</p>
+</div>
+
+<section class="step" id="m1">
+  <h3><span class="n">8.1</span>What MongoDB is: cards, drawers, cabinets</h3>
+  <p>SQL keeps data in tables where every row has the same columns. MongoDB is like a <strong>filing cabinet of index cards</strong>: each card holds whatever that item needs, including lists and mini-sections.</p>
+  <div class="tbl"><table>
+    <tr><th>MongoDB</th><th>Picture</th><th>SQL</th></tr>
+    <tr><td><strong>Document</strong></td><td>One index card (one movie)</td><td>Row</td></tr>
+    <tr><td><strong>Collection</strong></td><td>A drawer of cards (<code>movies</code>)</td><td>Table</td></tr>
+    <tr><td><strong>Database</strong></td><td>The whole cabinet (<code>sample_mflix</code>)</td><td>Database</td></tr>
+    <tr><td><strong>Field</strong></td><td>A label on the card (<code>title</code>)</td><td>Column</td></tr>
+  </table></div>
+<pre><code>{
+  title: 'City Lights',
+  year: 1931,
+  genres: ['Comedy', 'Drama', 'Romance'],    <span class="c">// a list on the card</span>
+  imdb: { rating: 8.6, votes: 1000 }         <span class="c">// a section inside the card</span>
+}</code></pre>
+  <p><code>{ }</code> = a card or a section; <code>[ ]</code> = a list. In SQL, the genres list would need its own table and a JOIN. That's the <strong>document model</strong> from Class 4.</p>
+  <div class="key"><strong>Remember:</strong> <mark>MongoDB doesn't force every card to have the same fields or types.</mark> That's flexible, but typos and messy values don't cause errors; they quietly change your results.</div>
+</section>
+
+<section class="step" id="m2">
+  <h3><span class="n">8.2</span>Connecting: Python notebook vs Compass shell</h3>
+<pre><code><span class="c"># Python (Jupyter / Colab). Run the cells in order, imports first.</span>
+%pip install "pymongo[srv]"          <span class="c"># the yellow 'srv' warning is harmless</span>
+
+import os
+from pprint import pprint
+from pymongo import MongoClient
+
+client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
+client.admin.command("ping")         <span class="c"># "are you there?" check</span>
+db = client["sample_mflix"]          <span class="c"># open the cabinet</span>
+db.movies                            <span class="c"># open the movies drawer</span></code></pre>
+  <div class="lines">
+    <div><code>PyMongo</code><span>The <strong>connector</strong> (Class 5) that lets Python talk to MongoDB.</span></div>
+    <div><code>MONGODB_URI</code><span>The database's address plus login. <code>mongodb+srv://...</code> = the class cloud database (Atlas); <code>mongodb://localhost:27017</code> = your own laptop, which has no <code>sample_mflix</code>. The class URI is in the notebook; it's not repeated here because this page is public.</span></div>
+    <div><code>serverSelectionTimeoutMS</code><span>Give up after 10 seconds instead of hanging.</span></div>
+  </div>
+  <p><strong>In Compass:</strong> click <strong>+</strong> next to CONNECTIONS, paste the class URI, connect, then right-click <em>that</em> connection → <em>Open MongoDB shell</em>, and run <code>use sample_mflix</code>.</p>
+  <div class="tbl"><table>
+    <tr><th>Python notebook</th><th>Shell (JavaScript)</th></tr>
+    <tr><td><code>db = client["sample_mflix"]</code></td><td><code>use sample_mflix</code></td></tr>
+    <tr><td><code>db.list_collection_names()</code></td><td><code>show collections</code></td></tr>
+    <tr><td><code>find_one</code>, <code>count_documents</code></td><td><code>findOne</code>, <code>countDocuments</code></td></tr>
+    <tr><td><code>{"_id": 0, "title": 1}</code></td><td><code>{ _id: 0, title: 1 }</code> (quotes needed only for dotted names like <code>"imdb.rating"</code>)</td></tr>
+    <tr><td><code>.sort([("imdb.rating", -1)])</code></td><td><code>.sort({ "imdb.rating": -1 })</code></td></tr>
+    <tr><td><code>pprint(list(...))</code></td><td>Results show automatically</td></tr>
+  </table></div>
+  <div class="key"><strong><code>ReferenceError: client is not defined</code></strong> is a JavaScript error, so <mark>Python code was pasted into the shell</mark>. Python's equivalent is <code>NameError</code>.</div>
+</section>
+
+<section class="step" id="m3">
+  <h3><span class="n">8.3</span><code>find(filter, projection)</code>, sort, skip, limit</h3>
+<pre><code>db.movies.find(
+    { "imdb.rating": { $type: "number", $gte: 8 } },          <span class="c">// which cards</span>
+    { _id: 0, title: 1, year: 1, "imdb.rating": 1 }           <span class="c">// which parts to show</span>
+).sort({ "imdb.rating": -1, _id: 1 }).skip(1).limit(5)</code></pre>
+<pre><code><span class="c">-- roughly the same in SQL</span>
+SELECT title, year, imdb_rating FROM movies
+WHERE imdb_rating &gt;= 8
+ORDER BY imdb_rating DESC, _id
+LIMIT 5 OFFSET 1;</code></pre>
+  <div class="lines">
+    <div><code>"imdb.rating"</code><span><strong>Dot notation</strong>: the rating <em>inside</em> imdb, like a folder path.</span></div>
+    <div><code>$type: "number"</code><span>Some ratings are stored as blank text <code>""</code>. SQL would block that; MongoDB doesn't, so you filter it out yourself.</span></div>
+    <div><code>1 / 0</code><span>Show / hide. Don't mix them in one projection; <code>_id</code> is the only exception. <code>_id</code> shows unless you hide it.</span></div>
+    <div><code>-1 / 1</code><span>Highest first / lowest first. A second sort key breaks ties so the order is the same every run.</span></div>
+    <div><code>.skip(n)</code><span>Skip the first n (used for pages of results).</span></div>
+    <div><code>.limit(n)</code><span>At most n.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Code</th><th>Means</th></tr>
+    <tr><td><code>$gt</code> / <code>$gte</code></td><td>&gt; / ≥</td></tr>
+    <tr><td><code>$lt</code> / <code>$lte</code></td><td>&lt; / ≤</td></tr>
+    <tr><td><code>$ne</code></td><td>≠</td></tr>
+  </table></div>
+  <p><strong>A cursor is used up as you read it.</strong> <code>find()</code> hands results over one at a time (like reading a file line by line in Class 1), so 10 million cards don't flood memory. To read them again, run <code>find()</code> again. <code>findOne()</code> returns one card or <code>null</code>.</p>
+  <p>The output listed <em>The Civil War</em> twice: the sample data contains <strong>duplicate cards</strong>. MongoDB doesn't block duplicates unless you add a unique index.</p>
+  <div class="key"><strong>Projection depth:</strong> <mark>stop at a folder and you get the whole folder; go down to a field and you get just that field.</mark> <code>"location.address": 1</code> shows the full address; <code>"location.address.city": 1</code> shows only the city.</div>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>In plain English: <code>db.movies.find({ year: { $lt: 1950 } }, { _id: 0, title: 1 }).limit(3)</code><span class="a">Up to 3 movies made before 1950, showing only the title.</span></li>
+    <li>Find 3 theaters in Chicago, showing only the theater ID and city.<span class="a"><code>db.theaters.find({ "location.address.city": "Chicago" }, { _id: 0, theaterId: 1, "location.address.city": 1 }).limit(3)</code></span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="m4">
+  <h3><span class="n">8.4</span>AND, OR, and lists</h3>
+  <div class="tbl"><table>
+    <tr><th>You want</th><th>Write</th><th>Plain English</th></tr>
+    <tr><td>A <strong>and</strong> B</td><td><code>{ A, B }</code> side by side</td><td>Both true (the default, called an <em>implicit AND</em>)</td></tr>
+    <tr><td>A <strong>or</strong> B</td><td><code>{ $or: [ {A}, {B} ] }</code></td><td>At least one true</td></tr>
+    <tr><td>List <strong>contains</strong> X</td><td><code>{ genres: "X" }</code></td><td>X is somewhere in the list</td></tr>
+    <tr><td>List contains <strong>all</strong> of X and Y</td><td><code>{ genres: { $all: ["X", "Y"] } }</code></td><td>Both present, any order, extras fine</td></tr>
+  </table></div>
+<pre><code>db.movies.countDocuments({ genres: "Horror", year: { $gte: 2000 } })              <span class="c">// AND: 866</span>
+db.movies.countDocuments({ $or: [ { genres: "Horror" }, { year: { $gte: 2000 } } ] }) <span class="c">// OR: 13,173</span></code></pre>
+  <p>Worked check: 1,470 Horror (any year) + 12,569 from 2000+ (any genre) − 866 in both = <strong>13,173</strong>. The overlap is subtracted once because adding the two groups counts it twice.</p>
+  <div class="key"><strong>Remember:</strong> <mark>AND shrinks the result (another test to pass); OR grows it (another way in).</mark> OR here lets in every Horror film from any year <em>and</em> every 2000+ film of any genre.</div>
+  <p><code>{ genres: "Drama" }</code> matches <code>['Comedy', 'Drama', 'Romance']</code> because for a list, equality means "contains". That's what you usually mean by "show me dramas", and it avoids SQL's JOIN.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Find dramas from 2000+ rated 8+, show title/year/rating, highest first, title A→Z for ties, first 5.<span class="a"><code>db.movies.find({ genres: "Drama", year: { $type: "number", $gte: 2000 }, "imdb.rating": { $type: "number", $gte: 8 } }, { _id: 0, title: 1, year: 1, "imdb.rating": 1 }).sort({ "imdb.rating": -1, title: 1 }).limit(5)</code><br>Band of Brothers (9.6), North &amp; South (9.0), The Dark Knight (9.0), Drishyam (8.9), Love is God (8.9). One query with all three conditions, not three separate queries.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="m5">
+  <h3><span class="n">8.5</span>NOT, missing fields and messy values</h3>
+  <div class="lines">
+    <div><code>$not</code><span>Keeps every card where the test <strong>fails</strong>, including cards with <strong>no such field</strong> and cards where it's the <strong>wrong type</strong>.</span></div>
+    <div><code>$exists: true</code><span>The field must be on the card.</span></div>
+    <div><code>$type: "number"</code><span>The value must be a real number.</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Query</th><th>Lets in</th><th>Count</th></tr>
+    <tr><td><code>{ year: { $not: { $gt: 2000 } } }</code></td><td>≤ 2000 + missing + text years</td><td>9,361</td></tr>
+    <tr><td><code>{ year: { $not: { $gt: 2000 }, $exists: true } }</code></td><td>≤ 2000 + text years</td><td>9,361</td></tr>
+    <tr><td><code>{ year: { $lte: 2000 } }</code></td><td>real numeric years ≤ 2000 only</td><td>9,326</td></tr>
+  </table></div>
+  <p><strong>Reading the counts:</strong> rows 1 and 2 match, so <em>no</em> card is missing its year. Rows 2 and 3 differ by <strong>35</strong>: cards whose year is text.</p>
+<pre><code>db.movies.find({ year: { $not: { $type: "number" } } }, { _id: 0, title: 1, year: 1 }).limit(5)
+<span class="c">// Babylon 5  year: '1994è1998'   ← quotes = text; 'è' is a mis-encoded dash</span></code></pre>
+  <p>They're mostly TV series with year ranges (1994–1998) whose dash was saved with the wrong character encoding. A 1980s query using <code>$gte</code>/<code>$lte</code> would silently drop them. Fix by cleaning the data (e.g. Python <code>int(year[:4])</code>), as in Class 3.</p>
+  <div class="key"><strong>Remember:</strong> <mark>looking at 3 examples can hide a difference that a count shows instantly.</mark> The notebook's <code>.limit(3)</code> outputs looked identical with and without <code>$exists</code>.</div>
+</section>
+
+<section class="step" id="m6">
+  <h3><span class="n">8.6</span>Comparing text: collation and <code>$regex</code></h3>
+  <p>MongoDB compares text <strong>exactly</strong> by default: <code>"the godfather"</code> doesn't match <code>"The Godfather"</code>. (Many SQL databases are case-insensitive by default, so this catches people out.)</p>
+<pre><code>db.movies.find({ title: "the godfather" }, { _id: 0, title: 1 })
+         .collation({ locale: "en", strength: 2 })        <span class="c">// finds The Godfather</span></code></pre>
+  <div class="tbl"><table>
+    <tr><th>strength</th><th>Capitals</th><th>Accents</th><th>Example</th></tr>
+    <tr><td>1</td><td>ignored</td><td>ignored</td><td>"cafe" = "Café"</td></tr>
+    <tr><td>2</td><td>ignored</td><td>matter</td><td>"cafe" = "Cafe", ≠ "café"</td></tr>
+    <tr><td>3</td><td>matter</td><td>matter</td><td>strict, like no collation</td></tr>
+  </table></div>
+  <p>Collation also fixes <strong>sorting</strong>: without it, all capitals sort before all lowercase ("Zebra" before "apple").</p>
+<pre><code>db.movies.find({ title: { $regex: "star wars", $options: "i" } }, { _id: 0, title: 1, year: 1 })</code></pre>
+  <div class="vs">
+    <div class="ok"><span class="lbl">Collation</span>Changes <strong>how</strong> text is compared (capitals, accents). Still needs the <strong>whole</strong> value to match: <code>"star wars"</code> found nothing, because no title is exactly that.</div>
+    <div class="ok"><span class="lbl">$regex</span>Changes <strong>how much</strong> must match: the title only has to <strong>contain</strong> it. <code>"i"</code> ignores capitals. Like SQL <code>LIKE '%star wars%'</code>.</div>
+  </div>
+</section>
+
+<section class="step" id="m7">
+  <h3><span class="n">8.7</span>Aggregation pipelines: the assembly line</h3>
+  <p>A pipeline is a list of <strong>stations</strong>. Cards pass through each one in order, and each does one job. Unlike SQL (Class 6.9), <mark>the stages run in exactly the order you write them</mark>.</p>
+  <div class="tbl"><table>
+    <tr><th>Stage</th><th>Job</th><th>SQL</th></tr>
+    <tr><td><code>$match</code></td><td>Keep some cards (same filter as <code>find</code>)</td><td>WHERE</td></tr>
+    <tr><td><code>$project</code></td><td>Show, hide <strong>or calculate</strong> fields</td><td>SELECT</td></tr>
+    <tr><td><code>$group</code></td><td>Make piles and summarize each</td><td>GROUP BY</td></tr>
+    <tr><td><code>$unwind</code></td><td>One copy of the card per list item</td><td>(none)</td></tr>
+    <tr><td><code>$sort</code> / <code>$limit</code></td><td>Order / cut</td><td>ORDER BY / LIMIT</td></tr>
+    <tr><td><code>$count</code></td><td>Count what arrives</td><td>COUNT(*)</td></tr>
+  </table></div>
+<pre><code>db.movies.aggregate([
+    { $match: { genres: "Comedy" } },
+    { $count: "comedy_count" }                 <span class="c">// { comedy_count: 6532 }</span>
+])</code></pre>
+  <p><code>countDocuments({ genres: "Comedy" })</code> gives the same 6,532. A misspelt field (<code>genre</code>) gives <strong>no result at all</strong>: MongoDB doesn't flag unknown fields, and <code>$count</code> outputs nothing when zero cards arrive.</p>
+<pre><code>db.movies.aggregate([
+    { $match: { "imdb.rating": { $type: "number", $gte: 8 } } },
+    { $project: { _id: 0, title: 1,
+                  castCount: { $size: { $ifNull: ["$cast", []] } } } },
+    { $sort: { castCount: -1, title: 1 } },
+    { $limit: 5 }
+])</code></pre>
+  <div class="lines">
+    <div><code>"$cast"</code><span>With <code>$</code>: <strong>the value</strong> of the cast field. Without it, <code>"cast"</code> is just the word.</span></div>
+    <div><code>$ifNull</code><span>No cast list? Use an empty list, so it counts as 0.</span></div>
+    <div><code>$size</code><span>How many items are in the list.</span></div>
+  </div>
+  <p>Every result shows 4: this dataset stores at most 4 cast members, so they all tie and the titles sort A→Z (digits before letters).</p>
+</section>
+
+<section class="step" id="m8">
+  <h3><span class="n">8.8</span><code>$group</code> and <code>$unwind</code></h3>
+<pre><code>db.movies.aggregate([
+    { $match: { title: { $regex: "Star" } } },            <span class="c">// capitals matter: no "i"</span>
+    { $group: { _id: "$year", titles: { $addToSet: "$title" } } },
+    { $sort: { _id: 1 } },
+    { $limit: 3 }
+])</code></pre>
+  <div class="lines">
+    <div><code>_id: "$year"</code><span>In <code>$group</code>, <code>_id</code> means <strong>"group by this"</strong>, not the card's ID number.</span></div>
+    <div><code>$addToSet</code><span>Collects values into a list <strong>without duplicates</strong>. <code>$push</code> keeps everything.</span></div>
+  </div>
+  <p><strong><code>$unwind</code></strong> copies a card once per list item, so a movie can count in every genre it belongs to:</p>
+<pre class="out">City Lights | 8.6 | [Comedy, Drama, Romance]
+      ↓ $unwind
+City Lights | 8.6 | Comedy
+City Lights | 8.6 | Drama
+City Lights | 8.6 | Romance</pre>
+<pre><code>db.movies.aggregate([
+    { $match: { "imdb.rating": { $type: "number" } } },
+    { $unwind: "$genres" },
+    { $group: { _id: "$genres",
+                avgRating: { $avg: "$imdb.rating" },
+                count: { $sum: 1 } } },               <span class="c">// add 1 per card = COUNT(*)</span>
+    { $sort: { avgRating: -1, _id: 1 } },
+    { $limit: 10 }
+])</code></pre>
+  <div class="key"><strong>Always read the count next to an average.</strong> <mark>Talk-Show makes the top 10 with 7.0, but from just 1 movie</mark>; Documentary's 7.37 comes from 1,824.</div>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -2035,6 +2260,22 @@ GRANT EXECUTE ON PROCEDURE data604.monthly_summary TO 'analyst'@'localhost';
     <tr><td>Reusable routine</td><td><code>CREATE PROCEDURE p(IN c ...) BEGIN ... END</code>, run with <code>CALL p('x');</code></td></tr>
     <tr><td>Let someone run it</td><td><code>GRANT EXECUTE ON ...</code> (MariaDB create right: <code>CREATE ROUTINE</code>)</td></tr>
   </table></div>
+  <div class="tbl"><table>
+    <tr><th>MongoDB task (shell)</th><th>Use</th></tr>
+    <tr><td>Pick cards / show fields</td><td><code>db.movies.find({ filter }, { _id: 0, title: 1 })</code></td></tr>
+    <tr><td>Nested field</td><td><code>"imdb.rating"</code>, <code>"location.address.city"</code></td></tr>
+    <tr><td>Compare</td><td><code>$gt $gte $lt $lte $ne</code></td></tr>
+    <tr><td>AND / OR</td><td>side by side / <code>{ $or: [ {...}, {...} ] }</code></td></tr>
+    <tr><td>List contains / contains all</td><td><code>{ genres: "Drama" }</code> / <code>{ $all: [...] }</code></td></tr>
+    <tr><td>Field present / real number</td><td><code>$exists: true</code> / <code>$type: "number"</code></td></tr>
+    <tr><td>Order and page</td><td><code>.sort({ x: -1 }).skip(n).limit(n)</code></td></tr>
+    <tr><td>Count</td><td><code>db.movies.countDocuments({ filter })</code></td></tr>
+    <tr><td>Ignore capitals (whole value)</td><td><code>.collation({ locale: "en", strength: 2 })</code></td></tr>
+    <tr><td>Contains text</td><td><code>{ title: { $regex: "x", $options: "i" } }</code></td></tr>
+    <tr><td>Pipeline</td><td><code>db.movies.aggregate([ {$match}, {$group}, {$sort}, {$limit} ])</code></td></tr>
+    <tr><td>Group and summarize</td><td><code>{ $group: { _id: "$field", avg: { $avg: "$x" }, n: { $sum: 1 } } }</code></td></tr>
+    <tr><td>One copy per list item</td><td><code>{ $unwind: "$genres" }</code></td></tr>
+  </table></div>
 </section>
 
 <section class="step" id="mistakes">
@@ -2085,6 +2326,17 @@ GRANT EXECUTE ON PROCEDURE data604.monthly_summary TO 'analyst'@'localhost';
     <div><b>Forgetting <code>DELIMITER</code></b><span>A <code>BEGIN ... END</code> body with several <code>;</code>s gets cut off at the first one.</span></div>
     <div><b>Thinking EXECUTE alone secures the data</b><span>Also create the procedure and don't grant SELECT on the table.</span></div>
     <div><b>Not skipping NULLs in a custom aggregate</b><span><code>total + NULL</code> = NULL, which wipes out the whole group.</span></div>
+    <div><b>Pasting Python into the Mongo shell</b><span><code>ReferenceError</code> = JavaScript. Use <code>findOne</code>, <code>use db</code>, no <code>print</code>.</span></div>
+    <div><b>Querying <code>localhost</code> for class data</b><span><code>sample_mflix</code> is on the class Atlas cluster. Open the shell from that connection.</span></div>
+    <div><b>Misspelling a field (<code>genre</code> for <code>genres</code>)</b><span>No error, just no results. Copy names from <code>findOne()</code>.</span></div>
+    <div><b>Projecting a folder when you want one field</b><span><code>"location.address"</code> shows it all; use <code>"location.address.city"</code>.</span></div>
+    <div><b>Splitting AND conditions into separate queries</b><span>Put them side by side in one filter.</span></div>
+    <div><b><code>.sort()</code> inside <code>find( )</code></b><span>Chain it after: <code>find(f, p).sort(...).limit(...)</code>.</span></div>
+    <div><b>Thinking OR narrows the result</b><span>OR adds more ways in, so the count grows.</span></div>
+    <div><b>Using <code>$not</code> as "less than"</b><span>It also lets in missing and text values. Prefer <code>$lte</code>, or add <code>$type</code>.</span></div>
+    <div><b>Collation strength 3 for case-insensitive search</b><span>3 is strict. Use 2.</span></div>
+    <div><b>Expecting collation to match part of a title</b><span>It still needs the whole value. Use <code>$regex</code> for "contains".</span></div>
+    <div><b>Trusting an average without its count</b><span>A genre with 1 movie can top the ranking.</span></div>
   </div>
 </section>
 
@@ -2100,7 +2352,7 @@ GRANT EXECUTE ON PROCEDURE data604.monthly_summary TO 'analyst'@'localhost';
 </section>
 
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order) and Class 7 (CASE, NTILE, LAG and custom functions).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions) and Class 8 (MongoDB with PyMongo).<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
