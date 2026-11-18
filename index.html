@@ -274,6 +274,8 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#j9d"><span class="n">9.4</span>JOIN ON &amp; natural joins</a></li>
       <li><a href="#j9e"><span class="n">9.5</span>Inner, left, right joins</a></li>
       <li><a href="#j9f"><span class="n">9.6</span>Join algorithms &amp; indexes</a></li>
+      <li><a href="#j9g"><span class="n">9.7</span>Keys in practice (Databricks)</a></li>
+      <li><a href="#j9h"><span class="n">9.8</span>FULL OUTER JOIN &amp; COALESCE</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -2196,7 +2198,7 @@ City Lights | 8.6 | Romance</pre>
 <div class="part" id="class9">
   <div class="eyebrow">Class 9</div>
   <h2>Keys and joins</h2>
-  <p>What makes a row unique, how tables point at each other, every type of join, and how the database actually performs one.</p>
+  <p>What makes a row unique, how tables point at each other, every type of join, and how the database actually performs one. Steps 9.7–9.8 add the night section's Databricks version (Lecture 6): building a primary key, FULL OUTER JOIN and COALESCE.</p>
 </div>
 
 <section class="step" id="j9a">
@@ -2325,6 +2327,75 @@ WHERE oi.product_id IS NULL;</code></pre>
   <div class="key"><strong>Remember:</strong> <mark>primary keys are indexed automatically; foreign keys usually aren't.</mark> For 10M orders joined on customer_id, index <code>orders.customer_id</code>.</div>
 </section>
 
+<section class="step" id="j9g">
+  <h3><span class="n">9.7</span>Keys in practice (Databricks, night Lecture 6)</h3>
+  <p><strong>Keep the key in your results.</strong> Both queries below total licences per animal per community, but only the second says which total is which:</p>
+<pre><code>SELECT SUM(`LICENSE VOLUME`) AS total                         <span class="c">-- numbers with no labels</span>
+FROM workspace.default.licensed_pets
+GROUP BY ANIMAL, `COMMUNITY NAME`;
+
+SELECT ANIMAL, `COMMUNITY NAME`, SUM(`LICENSE VOLUME`) AS total  <span class="c">-- labelled, joinable</span>
+FROM workspace.default.licensed_pets
+GROUP BY ANIMAL, `COMMUNITY NAME`;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>whatever you GROUP BY is the key of the result, so SELECT it too.</mark> A CTE without the community name has nothing to put in a later <code>ON</code>, so it can't be joined.</div>
+  <p><strong>A counter key with ROW_NUMBER</strong> (Databricks has no <code>AUTO_INCREMENT</code>). Use <code>ROW_NUMBER</code>, not <code>RANK</code>: a key must be unique, and <code>RANK</code> repeats on ties. Order by columns that uniquely identify each row, so the numbers don't change between runs.</p>
+<pre><code><span class="c">-- Build a key: add a column, give every row a unique value (rebuild with CTAS,</span>
+<span class="c">-- since UPDATE can't use window functions), then declare it</span>
+CREATE OR REPLACE TABLE workspace.default.pets_keyed AS
+SELECT ROW_NUMBER() OVER (ORDER BY `COMMUNITY NAME`, ANIMAL, my_date) AS pet_row_id, *
+FROM workspace.default.licensed_pets;
+
+ALTER TABLE workspace.default.pets_keyed ALTER COLUMN pet_row_id SET NOT NULL;      <span class="c">-- 1st</span>
+ALTER TABLE workspace.default.pets_keyed ADD CONSTRAINT pets_pk PRIMARY KEY (pet_row_id);  <span class="c">-- 2nd</span></code></pre>
+  <div class="lines">
+    <div><code>ALTER TABLE</code><span>Change an existing table.</span></div>
+    <div><code>SET NOT NULL first</code><span>A primary key can't have blanks, so Databricks refuses the key until the column is NOT NULL.</span></div>
+    <div><code>ADD CONSTRAINT pets_pk</code><span>Names the rule so you can find or drop it later.</span></div>
+    <div><code>CTAS</code><span><code>CREATE TABLE ... AS SELECT</code> builds a table from a query. Common in Databricks and Fabric.</span></div>
+  </div>
+  <div class="vs">
+    <div class="ok"><span class="lbl">MariaDB</span>Primary keys are <strong>enforced</strong>: a duplicate ID is rejected.</div>
+    <div class="no"><span class="lbl">Databricks</span>Primary and foreign keys are <strong>informational only</strong>: a duplicate 7 is <strong>accepted</strong>. <code>NOT NULL</code> is enforced but only blocks blanks, not duplicates. Checking billions of rows on every load would be too slow (a BASE-style trade-off).</div>
+  </div>
+<pre><code><span class="c">-- So check uniqueness yourself after loading: should return no rows</span>
+SELECT pet_row_id, COUNT(*) FROM workspace.default.pets_keyed
+GROUP BY pet_row_id HAVING COUNT(*) &gt; 1;</code></pre>
+</section>
+
+<section class="step" id="j9h">
+  <h3><span class="n">9.8</span>FULL OUTER JOIN, and which table's column to show</h3>
+<pre class="out">Left_table (X, Y)       Right_table (A, B)        ON Left_table.X = Right_table.A
+1 str                   1  sws                    → only 1 matches
+2 rtd                   5  was
+3 der                   10 qwe</pre>
+  <div class="tbl"><table>
+    <tr><th>Join</th><th>Rows</th><th>Which</th></tr>
+    <tr><td>INNER</td><td>1</td><td>1 str · 1 sws</td></tr>
+    <tr><td>LEFT</td><td>3</td><td>the match + 2 rtd, 3 der with NULLs</td></tr>
+    <tr><td>RIGHT</td><td>3</td><td>the match + 5 was, 10 qwe with NULLs</td></tr>
+    <tr><td><strong>FULL OUTER</strong></td><td><strong>5</strong></td><td>the match + unmatched rows from <strong>both</strong> sides</td></tr>
+  </table></div>
+  <p><strong>FULL OUTER = LEFT + RIGHT combined.</strong> Row count = matches + unmatched left + unmatched right (when each match pairs one row with one row). For example, 4 left, 3 right, 2 matching: 2 + 2 + 1 = <strong>5</strong> (= 4 + 3 − 2). Databricks supports it; MariaDB doesn't (use <code>UNION</code> of a LEFT and a RIGHT join there).</p>
+  <p><strong>Real example:</strong> <code>pets_by_community</code> (p: community, total_licences…) joined to <code>community_info</code> (c: community, SECTOR, CLASS).</p>
+<pre><code>SELECT p.community, c.SECTOR, c.CLASS, p.total_licences      <span class="c">-- LEFT: every p row kept, so p.community is always filled</span>
+FROM workspace.default.pets_by_community AS p
+LEFT JOIN workspace.default.community_info AS c ON p.community = c.community
+ORDER BY p.total_licences DESC;
+
+SELECT c.community, c.SECTOR, c.CLASS, p.total_licences      <span class="c">-- RIGHT: switch to c.community</span>
+FROM workspace.default.pets_by_community AS p
+RIGHT JOIN workspace.default.community_info AS c ON p.community = c.community
+ORDER BY p.total_licences DESC;
+
+SELECT COALESCE(c.community, p.community) AS community,     <span class="c">-- FULL: either side may be blank</span>
+       c.SECTOR, c.CLASS, p.total_licences
+FROM workspace.default.pets_by_community AS p
+FULL OUTER JOIN workspace.default.community_info AS c ON p.community = c.community
+ORDER BY p.total_licences DESC;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>take the key column from the table whose rows are all kept.</mark> After a RIGHT join, a community with no pet data has a blank <code>p.community</code>, so show <code>c.community</code>. After a FULL join either side can be blank, so <code>COALESCE(c.community, p.community)</code> takes the first one that isn't.</div>
+  <p><strong>Join on the key when you can.</strong> Both tables have a <code>comm_code</code> (CGR, PAT…). Joining on the code is safer than joining on the name text, where one table's spelling, spacing or capitals could differ and silently drop matches.</p>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -2430,6 +2501,10 @@ WHERE oi.product_id IS NULL;</code></pre>
     <tr><td>Rows in A with no match in B</td><td><code>LEFT JOIN ... WHERE B.key IS NULL</code></td></tr>
     <tr><td>Table nicknames</td><td><code>FROM customers c JOIN orders o</code></td></tr>
     <tr><td>Speed up searches and joins</td><td><code>CREATE INDEX name ON table (col)</code></td></tr>
+    <tr><td>Keep rows from both sides</td><td><code>A FULL OUTER JOIN B ON ...</code> (Databricks; not MariaDB)</td></tr>
+    <tr><td>Show a key after an outer join</td><td><code>COALESCE(c.community, p.community) AS community</code></td></tr>
+    <tr><td>Primary key in Databricks</td><td><code>ALTER COLUMN x SET NOT NULL;</code> then <code>ADD CONSTRAINT pk PRIMARY KEY (x);</code></td></tr>
+    <tr><td>Find duplicate keys</td><td><code>GROUP BY x HAVING COUNT(*) &gt; 1</code></td></tr>
   </table></div>
 </section>
 
@@ -2502,6 +2577,10 @@ WHERE oi.product_id IS NULL;</code></pre>
     <div><b>Joining products to <code>orders</code></b><span>Products are in <code>order_items</code>; read the schema first.</span></div>
     <div><b>Expecting a hash join for <code>&lt;</code> or <code>&gt;</code></b><span>Hash joins only handle <code>=</code>.</span></div>
     <div><b>Indexing the primary key "for speed"</b><span>It's already indexed. Index the foreign key on the big table.</span></div>
+    <div><b>Thinking NOT NULL blocks duplicates</b><span>It only blocks blanks. Uniqueness is the primary key's job.</span></div>
+    <div><b>Assuming Databricks enforces primary keys</b><span>They're informational; a duplicate is accepted. Check with GROUP BY / HAVING.</span></div>
+    <div><b>Grouping without selecting the key</b><span>Totals with no labels can't be joined later.</span></div>
+    <div><b>Showing <code>p.community</code> after a RIGHT join</b><span>Unmatched rows are blank there. Use the kept table's column, or COALESCE.</span></div>
   </div>
 </section>
 
