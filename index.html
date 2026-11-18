@@ -266,6 +266,17 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
     </ol>
   </div>
   <div class="navgroup">
+    <h2>Class 9 · Keys &amp; joins</h2>
+    <ol>
+      <li><a href="#j9a"><span class="n">9.1</span>Keys &amp; primary keys</a></li>
+      <li><a href="#j9b"><span class="n">9.2</span>Foreign keys</a></li>
+      <li><a href="#j9c"><span class="n">9.3</span>Cross joins</a></li>
+      <li><a href="#j9d"><span class="n">9.4</span>JOIN ON &amp; natural joins</a></li>
+      <li><a href="#j9e"><span class="n">9.5</span>Inner, left, right joins</a></li>
+      <li><a href="#j9f"><span class="n">9.6</span>Join algorithms &amp; indexes</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
     <h2>Quick reference</h2>
     <ol>
       <li><a href="#cheat"><span class="n">R1</span>Cheat sheet</a></li>
@@ -2181,6 +2192,139 @@ City Lights | 8.6 | Romance</pre>
   <div class="key"><strong>Always read the count next to an average.</strong> <mark>Talk-Show makes the top 10 with 7.0, but from just 1 movie</mark>; Documentary's 7.37 comes from 1,824.</div>
 </section>
 
+<!-- ============ CLASS 9 ============ -->
+<div class="part" id="class9">
+  <div class="eyebrow">Class 9</div>
+  <h2>Keys and joins</h2>
+  <p>What makes a row unique, how tables point at each other, every type of join, and how the database actually performs one.</p>
+</div>
+
+<section class="step" id="j9a">
+  <h3><span class="n">9.1</span>Keys and primary keys</h3>
+  <p><strong>The problem:</strong> how do you guarantee every row is unique? Two "Ava Smith" rows could be one student entered twice or two different students, and then you can't safely update, delete or count them.</p>
+  <p>A <strong>key</strong> is a column where every value is different, like a library card number. Keys are usually <strong>not allowed to be NULL</strong>: a blank can't identify anything.</p>
+  <div class="tbl"><table>
+    <tr><th>Strategy</th><th>How</th><th>Example</th></tr>
+    <tr><td><strong>Composite key</strong></td><td>No single column is unique, but a combination is</td><td><code>licensed_pets</code>: community + animal + date</td></tr>
+    <tr><td><strong>Counter (surrogate key)</strong></td><td>The database numbers rows 1, 2, 3…</td><td>MariaDB <code>AUTO_INCREMENT</code>; SQL Server <code>IDENTITY(1,1)</code>; MongoDB's <code>_id</code></td></tr>
+  </table></div>
+  <p>Things often have several <strong>candidate keys</strong> (a car: plate, VIN). The table picks one as its <strong>primary key</strong>.</p>
+  <div class="tbl"><table>
+    <tr><th>Student table option</th><th>Unique?</th><th>Never blank?</th><th>Never changes?</th></tr>
+    <tr><td>Name</td><td>❌</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Email</td><td>✅ usually</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Student ID</strong></td><td>✅</td><td>✅</td><td>✅</td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark>a good primary key is unique, never blank, and never changes</mark>. "Never changes" matters because other tables point at it. For cars, pick the VIN: plates change when a car is sold or moves province.</div>
+<pre><code>CREATE TABLE student (Student_ID INT PRIMARY KEY, Name VARCHAR(50));
+INSERT INTO student VALUES (2, 'Dan');      <span class="c">-- ok</span>
+INSERT INTO student VALUES (2, 'Dan');      <span class="c">-- ❌ rejected: ID 2 exists (only the key is checked)</span>
+INSERT INTO student VALUES (NULL, 'Cara');  <span class="c">-- ❌ rejected: key can't be NULL</span></code></pre>
+  <p>Those automatic checks are <strong>constraints</strong>. MongoDB let in duplicates and text years because nothing enforced rules. Before querying, work out what one row means (its key): it tells you what <code>COUNT(*)</code> counts and what to group or join on. <code>community_name</code> alone can't key <code>licensed_pets</code>, because each community appears on many rows (one per animal per date).</p>
+</section>
+
+<section class="step" id="j9b">
+  <h3><span class="n">9.2</span>Foreign keys</h3>
+  <p>A <strong>foreign key</strong> is a column that points to another table's primary key, like a loans table storing a library card number instead of copying the member's details.</p>
+<pre class="out">members                     loans
+card_no (PK) | name         loan_id (PK) | card_no (FK) | book
+1001         | Ava   ◄────  1            | 1001         | Dune
+1002         | Ben   ◄────  2            | 1002         | Emma
+                     ◄────  3            | 1001         | Ulysses</pre>
+  <p>Benefits: details are stored once, there's one place to update, and joins are easy.</p>
+<pre><code>CREATE TABLE course (
+    Course_ID INT PRIMARY KEY,
+    Course_Name VARCHAR(50),
+    Student_ID INT,
+    FOREIGN KEY (Student_ID) REFERENCES student(Student_ID)
+);
+INSERT INTO course VALUES (601, 'DATA 601', 1);   <span class="c">-- ok</span>
+INSERT INTO course VALUES (602, 'DATA 602', 1);   <span class="c">-- ok: FK values can repeat</span>
+INSERT INTO course VALUES (603, 'DATA 603', 5);   <span class="c">-- ❌ no student 5</span></code></pre>
+  <p><strong>Referential integrity:</strong> every reference must point at something real (no orphans). Create the referenced table first.</p>
+  <div class="key"><strong>Careful with the slide's "Unique":</strong> <mark>the side being pointed at (the primary key) is unique; the pointing side (the foreign key) can repeat.</mark> One customer, many orders: <code>orders.customer_id</code> → <code>customers.customer_id</code> is <strong>one-to-many</strong>.</div>
+  <p><strong>Design note:</strong> the slide's <code>course</code> table holds one Student_ID per row, so one student per course. Real enrolment is many-to-many, handled with a middle table: <code>enrolment(Student_ID FK, Course_ID FK)</code> with the composite primary key (Student_ID, Course_ID).</p>
+</section>
+
+<section class="step" id="j9c">
+  <h3><span class="n">9.3</span>Cross joins: every combination</h3>
+<pre class="out">A: 1 cat, 2 dog, 3 turtle      B: 2 violin, 3 cello, 1 guitar
+A CROSS JOIN B → 3 × 3 = 9 rows; the matching ids are
+1 cat–1 guitar, 2 dog–2 violin, 3 turtle–3 cello</pre>
+<pre><code>SELECT * FROM left_table CROSS JOIN right_table;</code></pre>
+  <div class="lines">
+    <div><code>Relation / tuple</code><span>Table / row. A <strong>Cartesian product</strong> is another name for a cross join.</span></div>
+    <div><code>Size</code><span><strong>Rows multiply, columns add.</strong> 4 rows × 5 rows = 20 rows; 2 cols + 3 cols = 5 cols.</span></div>
+  </div>
+  <div class="key"><strong>A join is a cross product, then a filter.</strong> <mark>A missing or wrong ON condition creates an accidental cross join</mark>: 50,000 customers × 1,000,000 orders = 50 billion rows.</div>
+  <p>Useful on purpose for "every product × every month" scaffolding, so empty months still show a row. (Slide 13's 9-row table repeats dog–violin and turtle–guitar and leaves out dog–guitar and turtle–violin; the complete set is the 9 combinations.)</p>
+</section>
+
+<section class="step" id="j9d">
+  <h3><span class="n">9.4</span>Joining on a condition, and natural joins</h3>
+<pre><code>SELECT * FROM left_table JOIN right_table
+ON (left_table.x = right_table.a);</code></pre>
+  <p>With x = 1, 3 and a = 1, 2, only x1–a1 matches: <strong>1 row</strong>. Add a = 3 on the right and x2 finds a partner: 2 rows. <code>JOIN</code>, <code>INNER JOIN</code> and <code>CROSS JOIN ... ON</code> behave the same in MariaDB; write <code>JOIN ... ON</code> for clarity.</p>
+<pre><code>SELECT c.customer_id, o.order_id                 <span class="c">-- table aliases c and o</span>
+FROM customers c JOIN orders o ON c.customer_id = o.customer_id;</code></pre>
+  <p>Without the <code>c.</code> prefix in SELECT you get <em>"Column 'customer_id' in field list is ambiguous"</em>: both tables have it.</p>
+<pre><code>SELECT * FROM left_table NATURAL JOIN right_table;
+<span class="c">-- = SELECT l.id, l.y, r.b FROM left_table AS l JOIN right_table AS r ON l.id = r.id;</span></code></pre>
+  <div class="vs">
+    <div class="ok"><span class="lbl">NATURAL JOIN</span>Joins on <strong>every</strong> column name the tables share, and shows that column once. Quick for exploring.</div>
+    <div class="no"><span class="lbl">The risk</span>Two shared names (e.g. <code>customer_id</code> <em>and</em> <code>created_date</code>) means joining on both, so most rows vanish with no error. A column added later can silently change it. In real work, write the <code>ON</code>.</div>
+  </div>
+</section>
+
+<section class="step" id="j9e">
+  <h3><span class="n">9.5</span>Inner, left and right joins</h3>
+<pre class="out">left_table          right_table          ON left_table.x = right_table.a
+x       y           a          b
+x1 (1)  y1 (2)      a1 (1)     b1 (3)    → only x1–a1 matches
+x2 (3)  y2 (4)      a2 (2)     b2 (4)
+x3 (5)  y3 (NULL)   a3 (NULL)  b3 (5)</pre>
+  <div class="tbl"><table>
+    <tr><th>Join</th><th>Keeps</th><th>Unmatched rows</th><th>Slide rows</th></tr>
+    <tr><td><strong>INNER</strong> (plain <code>JOIN</code>)</td><td>Only matches</td><td>Dropped</td><td>1</td></tr>
+    <tr><td><strong>LEFT</strong></td><td>Every row of the table written first</td><td>Right columns = NULL</td><td>3 (x1 matched; x2, x3 with NULLs)</td></tr>
+    <tr><td><strong>RIGHT</strong></td><td>Every right row</td><td>Left columns = NULL</td><td>3</td></tr>
+  </table></div>
+  <p>A RIGHT JOIN = a LEFT JOIN with the tables swapped, so most people only use LEFT. MariaDB has no <code>FULL OUTER JOIN</code>; combine LEFT and RIGHT with <code>UNION</code>.</p>
+  <div class="lines">
+    <div><code>NULL never matches</code><span>Unknown = unknown isn't true, so a NULL in a joined column (a3) matches nothing, not even another NULL.</span></div>
+    <div><code>Check the ON columns</code><span>x3 didn't match because x = 5 has no a = 5. Its <code>y</code> being NULL is irrelevant: <code>y</code> isn't compared.</span></div>
+    <div><code>Two kinds of NULL</code><span>x3's <code>y</code> NULL is real data; the NULLs a LEFT JOIN adds mean "no partner".</span></div>
+  </div>
+<pre><code><span class="c">-- Find what's missing: products never ordered</span>
+SELECT p.product_id, p.product_name
+FROM products p
+LEFT JOIN order_items oi ON p.product_id = oi.product_id
+WHERE oi.product_id IS NULL;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>the IS NULL check goes on a column from the right-hand table</mark>, the one that might be missing. A left-table key is never NULL, so checking it returns nothing.</div>
+  <p>For "every product with its sales, including zero", LEFT JOIN with products first and <code>COALESCE(SUM(...), 0)</code>.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Find customers who never ordered.<span class="a"><code>SELECT c.customer_id FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id WHERE o.order_id IS NULL;</code><br><code>o.order_id</code> is the orders primary key, so it's only NULL when the join found no order.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="j9f">
+  <h3><span class="n">9.6</span>Join algorithms and indexes</h3>
+  <p>Exercise: join (1,a), (2,b), (3,c) with (1,x), (3,z), (2,y) → <strong>(1,a,x), (2,b,y), (3,c,z)</strong>.</p>
+  <div class="tbl"><table>
+    <tr><th>Method</th><th>Idea</th><th>Work</th><th>Needs / limits</th></tr>
+    <tr><td><strong>Nested loop</strong></td><td>Check every left row against every right row</td><td>rows × rows (9 checks here; 100M for 10k × 10k)</td><td>Works for any condition, including <code>&lt;</code></td></tr>
+    <tr><td><strong>Merge</strong></td><td>Sort both, then walk them together like a zip</td><td>Each list read once (3 steps here)</td><td>Both sides sorted; sorting is expensive</td></tr>
+    <tr><td><strong>Hash</strong></td><td>Put one side in labelled boxes, jump straight to each match (a coat check)</td><td>≈ rows + rows</td><td><strong>Only <code>=</code></strong>: boxes are exact labels with no order, so "less than" would mean opening every box. Needs memory.</td></tr>
+  </table></div>
+  <p>The database picks the method. Merge needs sorted data, but a table has no guaranteed order. An <strong>index</strong> provides it: a sorted list of one column's values pointing to their rows, like a textbook index, kept in a <strong>B-tree</strong> of signposts.</p>
+<pre><code>CREATE INDEX idx_orders_customer ON orders (customer_id);</code></pre>
+  <div class="lines">
+    <div><code>Clustered index</code><span>Physically stores the rows in that order (a phone book). Only one per table; usually the primary key.</span></div>
+    <div><code>Cost</code><span>Every insert, update and delete must also update each index, so index the columns you search and join on most.</span></div>
+  </div>
+  <div class="key"><strong>Remember:</strong> <mark>primary keys are indexed automatically; foreign keys usually aren't.</mark> For 10M orders joined on customer_id, index <code>orders.customer_id</code>.</div>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -2276,6 +2420,17 @@ City Lights | 8.6 | Romance</pre>
     <tr><td>Group and summarize</td><td><code>{ $group: { _id: "$field", avg: { $avg: "$x" }, n: { $sum: 1 } } }</code></td></tr>
     <tr><td>One copy per list item</td><td><code>{ $unwind: "$genres" }</code></td></tr>
   </table></div>
+  <div class="tbl"><table>
+    <tr><th>Keys &amp; joins task</th><th>Use</th></tr>
+    <tr><td>Declare a primary key</td><td><code>Student_ID INT PRIMARY KEY</code></td></tr>
+    <tr><td>Declare a foreign key</td><td><code>FOREIGN KEY (col) REFERENCES other(col)</code></td></tr>
+    <tr><td>Every combination</td><td><code>A CROSS JOIN B</code> (rows multiply, columns add)</td></tr>
+    <tr><td>Matches only</td><td><code>A JOIN B ON A.k = B.k</code></td></tr>
+    <tr><td>Keep all of A</td><td><code>A LEFT JOIN B ON A.k = B.k</code></td></tr>
+    <tr><td>Rows in A with no match in B</td><td><code>LEFT JOIN ... WHERE B.key IS NULL</code></td></tr>
+    <tr><td>Table nicknames</td><td><code>FROM customers c JOIN orders o</code></td></tr>
+    <tr><td>Speed up searches and joins</td><td><code>CREATE INDEX name ON table (col)</code></td></tr>
+  </table></div>
 </section>
 
 <section class="step" id="mistakes">
@@ -2337,6 +2492,16 @@ City Lights | 8.6 | Romance</pre>
     <div><b>Collation strength 3 for case-insensitive search</b><span>3 is strict. Use 2.</span></div>
     <div><b>Expecting collation to match part of a title</b><span>It still needs the whole value. Use <code>$regex</code> for "contains".</span></div>
     <div><b>Trusting an average without its count</b><span>A genre with 1 movie can top the ranking.</span></div>
+    <div><b>Saying a foreign key must be unique</b><span>The primary key it points at is unique; the FK column repeats (one customer, many orders).</span></div>
+    <div><b>Multiplying columns in a cross join</b><span>Rows multiply; columns add.</span></div>
+    <div><b>Forgetting the ON condition</b><span>That's an accidental cross join: billions of rows.</span></div>
+    <div><b>Unqualified column in a join</b><span>"Ambiguous column". Write <code>c.customer_id</code>.</span></div>
+    <div><b>Trusting NATURAL JOIN</b><span>It joins on every shared column name. Write the ON.</span></div>
+    <div><b>Blaming a NULL in a column the ON doesn't compare</b><span>Check which columns the condition actually uses.</span></div>
+    <div><b><code>IS NULL</code> on the left table in an anti-join</b><span>Check a right-table column, e.g. <code>oi.product_id IS NULL</code>.</span></div>
+    <div><b>Joining products to <code>orders</code></b><span>Products are in <code>order_items</code>; read the schema first.</span></div>
+    <div><b>Expecting a hash join for <code>&lt;</code> or <code>&gt;</code></b><span>Hash joins only handle <code>=</code>.</span></div>
+    <div><b>Indexing the primary key "for speed"</b><span>It's already indexed. Index the foreign key on the big table.</span></div>
   </div>
 </section>
 
@@ -2352,7 +2517,7 @@ City Lights | 8.6 | Romance</pre>
 </section>
 
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions) and Class 8 (MongoDB with PyMongo).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions), Class 8 (MongoDB with PyMongo) and Class 9 (Keys and joins).<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
