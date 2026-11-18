@@ -263,6 +263,9 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#m6"><span class="n">8.6</span>Collation &amp; $regex</a></li>
       <li><a href="#m7"><span class="n">8.7</span>Aggregation pipelines</a></li>
       <li><a href="#m8"><span class="n">8.8</span>$group &amp; $unwind</a></li>
+      <li><a href="#m9"><span class="n">8.9</span>Document rules &amp; data types</a></li>
+      <li><a href="#m10"><span class="n">8.10</span>insert, $in vs $or, embedded docs</a></li>
+      <li><a href="#m11"><span class="n">8.11</span>SQL or document store? ACID, CAP</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -2194,6 +2197,97 @@ City Lights | 8.6 | Romance</pre>
   <div class="key"><strong>Always read the count next to an average.</strong> <mark>Talk-Show makes the top 10 with 7.0, but from just 1 movie</mark>; Documentary's 7.37 comes from 1,824.</div>
 </section>
 
+<section class="step" id="m9">
+  <h3><span class="n">8.9</span>Document stores: tables vs documents, rules and types</h3>
+  <p>From the <em>Document Store Databases</em> lecture.</p>
+  <div class="tbl"><table>
+    <tr><th>Tables (CSV, DataFrame, SQL)</th><th>Objects (JSON documents)</th></tr>
+    <tr><td><strong>Fixed length:</strong> same columns every row</td><td><strong>Variable length:</strong> each document has what it needs</td></tr>
+    <tr><td><strong>Compact:</strong> column names written once</td><td><strong>Expanded:</strong> every document repeats its labels (more storage)</td></tr>
+    <tr><td><strong>Flat:</strong> one value per cell</td><td><strong>Hierarchical:</strong> lists and sections inside sections (flexible)</td></tr>
+  </table></div>
+  <p>MongoDB is one document store; Couchbase/CouchDB and Azure Cosmos DB are others. Unlike SQL, <strong>the query syntax isn't standardized</strong> between them.</p>
+  <div class="tbl"><table>
+    <tr><th>Document rule</th><th>Why</th></tr>
+    <tr><td>Keys (field names) are always strings</td><td>They're labels. (A different meaning of "key" from SQL's primary key.)</td></tr>
+    <tr><td>Avoid <code>$</code> and <code>.</code> in names</td><td><code>$</code> starts operators; <code>.</code> means "go inside", so a field named <code>imdb.rating</code> would be ambiguous</td></tr>
+    <tr><td>Avoid the null character <code>\0</code></td><td>It can cut a name short</td></tr>
+    <tr><td>No duplicate keys in a document</td><td>Two <code>"title"</code>s: which is the title?</td></tr>
+    <tr><td><strong>Everything is case-sensitive</strong></td><td><code>"Year"</code> and <code>"year"</code> are different fields; a query on <code>year</code> silently skips the <code>Year</code> documents</td></tr>
+  </table></div>
+  <p><strong>Collections:</strong> documents don't have to look alike (a book and a film can share one), but similar fields are recommended so one query and one index cover them. Don't name a collection <code>""</code>, use <code>$</code>, or call it <code>system</code>. A <code>.</code> groups "subcollections" by convention only (<code>blog.posts</code>).</p>
+  <div class="tbl"><table>
+    <tr><th>Type</th><th>Example / note</th></tr>
+    <tr><td>null, Boolean, String, Date</td><td><code>null</code>, <code>true</code>, <code>"Frankenstein"</code>, <code>ISODate("2026-11-18")</code></td></tr>
+    <tr><td><strong>Number</strong></td><td><strong>Defaults to a 64-bit decimal</strong>; use <code>NumberInt</code> / <code>NumberLong</code> for whole numbers</td></tr>
+    <tr><td>Array</td><td><code>[1910, 1931, 1992]</code>; can be mixed types or nested</td></tr>
+    <tr><td>Embedded document</td><td><code>"Author": { "Name": "Mary Shelley", "BirthYear": 1797 }</code>; no JOIN needed</td></tr>
+    <tr><td>ObjectId</td><td>The automatic 12-byte <code>_id</code></td></tr>
+    <tr><td>Regex, binary, code</td><td>Patterns, files, JavaScript</td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark><code>_id</code> is added automatically and always unique</mark>: MongoDB's enforced primary key.</div>
+</section>
+
+<section class="step" id="m10">
+  <h3><span class="n">8.10</span>Inserting, <code>$in</code> vs <code>$or</code>, embedded documents</h3>
+<pre><code><span class="c"># Python: a document is a dictionary</span>
+from pymongo import MongoClient        <span class="c"># slide 11 imports only pymongo; this is the form MongoClient(...) needs</span>
+client = MongoClient("mongodb://localhost:27017")
+db = client.my_database
+col = db.sample_collection             <span class="c"># slide 12's my_database.sample_collection means db.sample_collection</span>
+
+col.insert_one({"title": "Frankenstein", "year": 1931})
+col.insert_many([{"title": "A"}, {"title": "B"}, {"title": "C"}])   <span class="c"># a LIST of dictionaries</span>
+col.find_one({"title": "A"})
+col.find({})                           <span class="c"># many documents: find(). There is no find_many()</span></code></pre>
+  <div class="vs">
+    <div class="ok"><span class="lbl">$in: one field, several values</span><code>{ year: { $in: [1990, 1995, 2000] } }</code><br>Matches if the field equals any of them.</div>
+    <div class="ok"><span class="lbl">$or: different fields</span><code>{ $or: [ { year: 2001 }, { "imdb.rating": { $gt: 9 } } ] }</code><br>Matches if either condition is true.</div>
+  </div>
+  <p>And <code>$all</code> is different again: a <strong>list</strong> must contain every listed value (8.4).</p>
+  <p><strong>Searching inside an embedded document.</strong> Picture <code>semester</code> as an envelope holding year 2020, startMonth "Sep", endMonth "Dec".</p>
+<pre><code>db.courses.find({ semester: { year: 2020, startMonth: "Sep" } })        <span class="c">// ❌ not found</span>
+db.courses.find({ "semester.year": 2020, "semester.startMonth": "Sep" }) <span class="c">// ✅ found</span></code></pre>
+  <div class="lines">
+    <div><code>Whole section</code><span>"Find an envelope exactly like this one": every field, same order, nothing extra. The real one has an endMonth page, so no match.</span></div>
+    <div><code>Dot notation</code><span>"Open it and check these pages": only the named fields are checked; extras are fine. <strong>Recommended.</strong></span></div>
+  </div>
+</section>
+
+<section class="step" id="m11">
+  <h3><span class="n">8.11</span>Choosing a database: SQL or document store?</h3>
+  <div class="tbl"><table>
+    <tr><th></th><th>Relational (SQL)</th><th>Document store</th></tr>
+    <tr><td>Structure</td><td>Tables with defined columns and types</td><td>Collections of JSON/BSON documents</td></tr>
+    <tr><td>Links</td><td>Keys connect rows across tables</td><td>Embed related data</td></tr>
+    <tr><td>Schema</td><td>Defined</td><td>Flexible; validation depends on the database</td></tr>
+    <tr><td>Trade-off</td><td>Less duplication, more joins</td><td>Fewer joins, more duplication</td></tr>
+  </table></div>
+  <div class="key"><strong>The trade-off:</strong> <mark>SQL stores shared data once and joins it (safe updates); a document store embeds it (fast reads, duplicated data).</mark> An actor in 50 movies is one row in SQL, but 50 embedded copies in MongoDB, and updating their biography means finding all 50.</div>
+  <p><strong>ACID/BASE:</strong> "NoSQL means BASE" is a trap. MongoDB writes each document all-or-nothing and supports multi-document <strong>ACID transactions</strong>. Guarantees vary between document stores.</p>
+  <p><strong>CAP with replicas</strong> (copies of the data on other servers). A rating changes 4.0 → 4.5, then the servers lose contact:</p>
+  <div class="vs">
+    <div class="ok"><span class="lbl">Consistency first (CP)</span>The out-of-touch copy refuses to answer, so users wait or retry, but never see 4.0. A bank balance.</div>
+    <div class="ok"><span class="lbl">Availability first (AP)</span>It answers anyway, possibly with the stale 4.0. Fast but maybe out of date.</div>
+  </div>
+  <p>The document format doesn't decide this; the database's replication settings do.</p>
+  <div class="tbl"><table>
+    <tr><th>Workload</th><th>Better fit</th><th>Why</th></tr>
+    <tr><td>A movie page: cast, genres, awards together</td><td>Document store</td><td>One read, no joins</td></tr>
+    <tr><td>Films, series and documentaries with different details (seasons)</td><td>Document store</td><td>Each document only has the fields it needs; no empty columns</td></tr>
+    <tr><td>Which actors appear together across films?</td><td>Relational</td><td>Many-to-many queries across entities</td></tr>
+    <tr><td>Update an actor's biography everywhere</td><td>Relational</td><td>Stored once, changed once</td></tr>
+  </table></div>
+  <details class="check"><summary>Quick-fire revision</summary><div class="body"><ol>
+    <li>MongoDB's primary key?<span class="a"><code>_id</code>, added automatically, always unique.</span></li>
+    <li>Why is dot notation safer than matching a whole embedded section?<span class="a">It checks only the fields you name; extra fields don't break the match.</span></li>
+    <li>Year is 2001 <em>or</em> rating above 9: <code>$in</code> or <code>$or</code>?<span class="a"><code>$or</code>: two different fields.</span></li>
+    <li>True or false: MongoDB can't do ACID transactions.<span class="a">False.</span></li>
+    <li>A bank app must never show a stale balance: CP or AP?<span class="a">Consistency first (CP).</span></li>
+    <li>Which PyMongo method gets many documents?<span class="a"><code>find()</code>. <code>find_many</code> doesn't exist.</span></li>
+  </ol></div></details>
+</section>
+
 <!-- ============ CLASS 9 ============ -->
 <div class="part" id="class9">
   <div class="eyebrow">Class 9</div>
@@ -2357,6 +2451,16 @@ ALTER TABLE workspace.default.pets_keyed ADD CONSTRAINT pets_pk PRIMARY KEY (pet
     <div class="ok"><span class="lbl">MariaDB</span>Primary keys are <strong>enforced</strong>: a duplicate ID is rejected.</div>
     <div class="no"><span class="lbl">Databricks</span>Primary and foreign keys are <strong>informational only</strong>: a duplicate 7 is <strong>accepted</strong>. <code>NOT NULL</code> is enforced but only blocks blanks, not duplicates. Checking billions of rows on every load would be too slow (a BASE-style trade-off).</div>
   </div>
+  <p><strong>Keeping keys clean in Databricks anyway:</strong> NOT NULL already blocks blanks. For duplicates, (1) let Databricks number the rows with an <strong>identity column</strong>, which nobody can type their own values into; (2) load with <strong>MERGE INTO</strong>, which only inserts keys that aren't already there; (3) run the duplicate check below as a safety net.</p>
+<pre><code>CREATE TABLE workspace.default.pets_ids (
+  pet_row_id BIGINT GENERATED ALWAYS AS IDENTITY,
+  community STRING, animal STRING, volume INT
+);
+
+MERGE INTO workspace.default.pets_keyed AS t
+USING new_rows AS s
+ON t.pet_row_id = s.pet_row_id
+WHEN NOT MATCHED THEN INSERT *;          <span class="c">-- existing keys are skipped</span></code></pre>
 <pre><code><span class="c">-- So check uniqueness yourself after loading: should return no rows</span>
 SELECT pet_row_id, COUNT(*) FROM workspace.default.pets_keyed
 GROUP BY pet_row_id HAVING COUNT(*) &gt; 1;</code></pre>
@@ -2490,6 +2594,9 @@ ORDER BY p.total_licences DESC;</code></pre>
     <tr><td>Pipeline</td><td><code>db.movies.aggregate([ {$match}, {$group}, {$sort}, {$limit} ])</code></td></tr>
     <tr><td>Group and summarize</td><td><code>{ $group: { _id: "$field", avg: { $avg: "$x" }, n: { $sum: 1 } } }</code></td></tr>
     <tr><td>One copy per list item</td><td><code>{ $unwind: "$genres" }</code></td></tr>
+    <tr><td>One field, several values</td><td><code>{ year: { $in: [1990, 1995, 2000] } }</code></td></tr>
+    <tr><td>Insert (Python)</td><td><code>insert_one({...})</code> / <code>insert_many([{...}, {...}])</code></td></tr>
+    <tr><td>Inside an embedded document</td><td>Dot notation: <code>{ "semester.year": 2020 }</code></td></tr>
   </table></div>
   <div class="tbl"><table>
     <tr><th>Keys &amp; joins task</th><th>Use</th></tr>
@@ -2505,6 +2612,8 @@ ORDER BY p.total_licences DESC;</code></pre>
     <tr><td>Show a key after an outer join</td><td><code>COALESCE(c.community, p.community) AS community</code></td></tr>
     <tr><td>Primary key in Databricks</td><td><code>ALTER COLUMN x SET NOT NULL;</code> then <code>ADD CONSTRAINT pk PRIMARY KEY (x);</code></td></tr>
     <tr><td>Find duplicate keys</td><td><code>GROUP BY x HAVING COUNT(*) &gt; 1</code></td></tr>
+    <tr><td>Auto-numbered key (Databricks)</td><td><code>id BIGINT GENERATED ALWAYS AS IDENTITY</code></td></tr>
+    <tr><td>Load without duplicate keys</td><td><code>MERGE INTO t USING s ON t.id = s.id WHEN NOT MATCHED THEN INSERT *</code></td></tr>
   </table></div>
 </section>
 
@@ -2581,6 +2690,11 @@ ORDER BY p.total_licences DESC;</code></pre>
     <div><b>Assuming Databricks enforces primary keys</b><span>They're informational; a duplicate is accepted. Check with GROUP BY / HAVING.</span></div>
     <div><b>Grouping without selecting the key</b><span>Totals with no labels can't be joined later.</span></div>
     <div><b>Showing <code>p.community</code> after a RIGHT join</b><span>Unmatched rows are blank there. Use the kept table's column, or COALESCE.</span></div>
+    <div><b>Using <code>$all</code> when you mean <code>$in</code> or <code>$or</code></b><span><code>$in</code> = one field, several values; <code>$or</code> = different fields; <code>$all</code> = a list containing every value.</span></div>
+    <div><b>Matching a whole embedded document</b><span>Needs an exact copy. Use dot notation.</span></div>
+    <div><b>Calling <code>find_many()</code></b><span>It doesn't exist. Use <code>find()</code>.</span></div>
+    <div><b>Choosing MongoDB to update shared data everywhere</b><span>Embedded copies must all be updated. SQL stores it once.</span></div>
+    <div><b>"NoSQL means BASE"</b><span>MongoDB supports ACID transactions.</span></div>
   </div>
 </section>
 
