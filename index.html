@@ -145,7 +145,7 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
 
 <div class="shell">
 <nav class="rail" id="rail" aria-label="Contents">
-  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON, data cleaning, databases, SQL and MongoDB, step by step</small></div>
+  <div class="brand">DATA 604 Revision Guide<small>Files, CSVs, JSON, data cleaning, databases, SQL, MongoDB and graphs, step by step</small></div>
   <label for="navFilter" class="visually-hidden" style="position:absolute;left:-9999px">Filter topics</label>
   <input class="filter" id="navFilter" type="search" placeholder="Find a topic, e.g. strip, nunique" autocomplete="off">
 
@@ -279,6 +279,19 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#j9f"><span class="n">9.6</span>Join algorithms &amp; indexes</a></li>
       <li><a href="#j9g"><span class="n">9.7</span>Keys in practice (Databricks)</a></li>
       <li><a href="#j9h"><span class="n">9.8</span>FULL OUTER JOIN &amp; COALESCE</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 10 · Graph databases</h2>
+    <ol>
+      <li><a href="#g1"><span class="n">10.1</span>Circles and lines</a></li>
+      <li><a href="#g2"><span class="n">10.2</span>Why graphs are fast</a></li>
+      <li><a href="#g3"><span class="n">10.3</span>Cypher basics</a></li>
+      <li><a href="#g4"><span class="n">10.4</span>Kevin Bacon: following lines</a></li>
+      <li><a href="#g5"><span class="n">10.5</span>Examples: filtering, collect, UNWIND</a></li>
+      <li><a href="#g6"><span class="n">10.6</span>Examples: MERGE, SET, DELETE</a></li>
+      <li><a href="#g7"><span class="n">10.7</span>Examples: hops, shortestPath, count</a></li>
+      <li><a href="#g8"><span class="n">10.8</span>Relational, document or graph?</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -2500,6 +2513,284 @@ ORDER BY p.total_licences DESC;</code></pre>
   <p><strong>Join on the key when you can.</strong> Both tables have a <code>comm_code</code> (CGR, PAT…). Joining on the code is safer than joining on the name text, where one table's spelling, spacing or capitals could differ and silently drop matches.</p>
 </section>
 
+<!-- ============ CLASS 10 ============ -->
+<div class="part" id="class10">
+  <div class="eyebrow">Class 10</div>
+  <h2>Graph databases, Neo4j and Cypher</h2>
+  <p>The third kind of database after relational (SQL) and document stores (MongoDB). Steps 10.1–10.4 cover the lecture; 10.5–10.7 work through the <em>Cypher examples</em> sheet; 10.8 compares all three types.</p>
+</div>
+
+<section class="step" id="g1">
+  <h3><span class="n">10.1</span>What a graph is: circles and lines</h3>
+  <p>A graph database stores only <strong>two things</strong>: <strong>things</strong> (circles) and <strong>connections between things</strong> (lines with a word on them). Picture a family tree on a wall.</p>
+<pre class="out">(Grandma Ada) ──MOTHER_OF──► (Mum Bisi) ──MOTHER_OF──► (You)</pre>
+  <div class="tbl"><table>
+    <tr><th>Word</th><th>Meaning</th><th>Picture</th></tr>
+    <tr><td><strong>Node</strong> (vertex)</td><td>A thing: a person, movie, city</td><td>A circle</td></tr>
+    <tr><td><strong>Edge</strong> (relationship)</td><td>A connection between two things</td><td>A line with a label</td></tr>
+    <tr><td><strong>Graph</strong> G</td><td>All the nodes (V) and edges (E)</td><td>The whole drawing</td></tr>
+  </table></div>
+  <div class="vs">
+    <div class="ok"><span class="lbl">Undirected</span>Works both ways: Facebook friends.</div>
+    <div class="ok"><span class="lbl">Directed</span>An arrow, one way only: X/Twitter follows. A one-way street is one arrow; a two-way street is two.</div>
+  </div>
+  <p>Every relationship is a little <strong>sentence</strong>: thing → connecting word → thing. "Mariam <em>is the parent of</em> her child" points <strong>from</strong> Mariam <strong>to</strong> the child.</p>
+  <p>Graphs are anywhere there's a network: social networks, the internet, roads (places where roads meet are nodes; roads are edges), money transfers, contact tracing, food webs, gene and protein pathways. Classic computer-science problems like the Travelling Salesman are graph problems.</p>
+<pre><code># Python: a dictionary of lists (an &quot;adjacency list&quot;): each node keeps its own connections
+friends = {&quot;Ava&quot;: [&quot;Ben&quot;, &quot;Cara&quot;], &quot;Ben&quot;: [&quot;Ava&quot;, &quot;Dan&quot;]}
+friends[&quot;Ava&quot;]                     # instant: no searching
+
+import networkx as nx              # the standard graph library
+G = nx.Graph()                     # nx.DiGraph() for directed
+G.add_node(&quot;Ava&quot;)
+G.add_edge(&quot;Ava&quot;, &quot;Ben&quot;)           # adds both nodes if new
+list(G.neighbors(&quot;Ava&quot;))
+nx.shortest_path(G, &quot;Cara&quot;, &quot;Dan&quot;)</code></pre>
+  <p>A dictionary of lists beats one big list of tuples <code>[("Ava","Ben"), ...]</code>: finding Ava's connections in the tuple list means scanning the whole list every time.</p>
+</section>
+
+<section class="step" id="g2">
+  <h3><span class="n">10.2</span>Why graphs are fast for connections</h3>
+  <div class="vs">
+    <div class="no"><span class="lbl">SQL: the phone book</span>Relationships are just matching ID numbers in different tables. Every hop ("friends of friends of friends") is another JOIN that <strong>searches to rediscover</strong> the connection. The slide's O(n²): double the data, about four times the work.</div>
+    <div class="ok"><span class="lbl">Graph: the family tree on the wall</span>Each node keeps its <strong>own saved list of lines</strong>. You just <strong>follow them with your finger</strong>. Work depends on how many lines you follow, not the size of the database (the slide's O(n)).</div>
+  </div>
+  <div class="key"><strong>Remember:</strong> <mark>SQL stores things and rediscovers relationships with joins; a graph database stores the relationships themselves.</mark> Graphs shine when the connections <em>are</em> the question: "how is X linked to Y?", "who's within 3 steps?"</div>
+</section>
+
+<section class="step" id="g3">
+  <h3><span class="n">10.3</span>Cypher: drawing a picture with your keyboard</h3>
+  <p><strong>Neo4j</strong> is the most popular graph database. Ways in: Cypher shell (command line), Neo4j Browser and Bloom (graphical), and the <code>neo4j</code> Python package or Py2neo (code). Its query language, <strong>Cypher</strong>, draws the shape you're looking for:</p>
+  <div class="tbl"><table>
+    <tr><th>On paper</th><th>Type</th><th>Remember it as</th></tr>
+    <tr><td>A circle (thing)</td><td><code>( )</code></td><td>Round brackets look like a circle</td></tr>
+    <tr><td>A line</td><td><code>-</code></td><td></td></tr>
+    <tr><td>An arrowhead</td><td><code>-&gt;</code> or <code>&lt;-</code></td><td>Points at the receiving end</td></tr>
+    <tr><td>The label on the line</td><td><code>[:LABEL]</code>, in the middle of the line</td><td>A tag hanging on the line</td></tr>
+  </table></div>
+<pre><code>(Mariam)-[:PARENT_OF]-&gt;(Child)       <span class="c">// circle, tag, arrow, circle</span>
+(Mariam)-[:STUDIES_AT]-&gt;(UofC)
+(Mariam)-[:LIVES_IN]-&gt;(Calgary)</code></pre>
+  <p><strong>Inside a circle</strong> there are up to three pieces, like a conference badge:</p>
+<pre><code>(p:Person {name: &quot;Mariam&quot;})
+<span class="c">// p          = nickname (a variable) pointing at the whole circle; any name you like</span>
+<span class="c">// :Person    = the TYPE (label): what kind of thing; like the badge colour</span>
+<span class="c">// {name: ..} = the NAME TAG (properties) written on the badge</span></code></pre>
+  <p><strong>Asking a question</strong> = drawing a picture with a <strong>blank</strong>. What you know goes in by name; what you're asking about gets a <strong>placeholder</strong>, and you RETURN it.</p>
+<pre><code>MATCH (p:Person {name: &quot;Mariam&quot;})-[:PARENT_OF]-&gt;(child)   <span class="c">// &quot;Mariam is the parent of ___&quot;</span>
+RETURN child;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>Cypher</th><th>Means</th><th>SQL</th></tr>
+    <tr><td><code>MATCH</code></td><td>"Find anything shaped like this picture"</td><td>FROM</td></tr>
+    <tr><td><code>WHERE</code></td><td>"…but only where…"</td><td>WHERE</td></tr>
+    <tr><td><code>RETURN</code> (comes <strong>last</strong>)</td><td>"…and show me this"</td><td>SELECT (comes first)</td></tr>
+  </table></div>
+<pre><code>SELECT * FROM PERSON WHERE NAME = &#x27;Tom Hanks&#x27;;     <span class="c">-- SQL</span>
+
+MATCH (th:Person) WHERE th.name = &quot;Tom Hanks&quot; RETURN th;    <span class="c">// Cypher</span>
+MATCH (th:Person {name: &quot;Tom Hanks&quot;}) RETURN th;           <span class="c">// same, shorter</span></code></pre>
+  <p>Cypher is <strong>case-sensitive</strong> (<code>:Person</code> ≠ <code>:person</code>), and, like document stores, graph query languages <strong>aren't standardized</strong> between databases.</p>
+</section>
+
+<section class="step" id="g4">
+  <h3><span class="n">10.4</span>Following lines: the Kevin Bacon examples</h3>
+<pre><code>MATCH (kb:Person {name: &quot;Kevin Bacon&quot;})-[:CAST]-&gt;(movies)    <span class="c">// one hop: his movies</span>
+RETURN movies;</code></pre>
+  <p><code>-[:CAST]-</code> with <strong>no arrowhead</strong> means "connected either way". <strong>Slide slip:</strong> slide 13's <code>(kb:Person)-&gt;[:CAST]-&gt;</code> is a syntax error: the arrowhead only goes at the <em>far</em> end, <code>-[:CAST]-&gt;</code>. Retype its curly quotes (<code>'Kevin Bacon’</code>) too.</p>
+  <p><strong>Two hops = co-stars</strong>, like Grandma → daughter → grandchild:</p>
+<pre class="out">(Kevin Bacon) ──CAST── (a movie) ──CAST── (costar)
+     kb                  movie            costar</pre><pre><code>MATCH (kb:Person {name: &quot;Kevin Bacon&quot;})-[:CAST]-(movie)-[:CAST]-(costar)
+RETURN costar;
+
+MATCH (kb:Person {name: &quot;Kevin Bacon&quot;})-[:CAST]-()-[:CAST]-(costar)   <span class="c">// () = any node, unnamed</span>
+RETURN count(DISTINCT costar);</code></pre>
+  <p>The movie is a <strong>stepping stone</strong>: a placeholder you don't need to know in advance. In SQL this would be four JOINs; in Cypher you just make the drawing one hop longer.</p>
+  <div class="key"><strong>Remember:</strong> <mark>plain <code>count()</code> counts every path</mark>, so a co-star from two shared films is counted twice. <code>count(DISTINCT ...)</code> counts each person once, like <code>COUNT(DISTINCT customer_id)</code>.</div>
+</section>
+<section class="step" id="g5">
+  <h3><span class="n">10.5</span>Cypher examples 1: filtering and reading</h3>
+  <p>The examples sheet uses Neo4j's movie graph: <code>Person</code> and <code>Movie</code> nodes joined by <code>ACTED_IN</code>, <code>DIRECTED</code> and <code>WROTE</code>.</p>
+  <p><strong>Ranges: the sandwich.</strong> Cypher has no <code>BETWEEN</code>.</p>
+<pre><code>MATCH (p:Person)-[:ACTED_IN]-&gt;(m:Movie)
+WHERE 2000 &lt;= m.released &lt;= 2003            <span class="c">// 2000 to 2003, both ends included</span>
+RETURN p.name, m.title, m.released;
+
+MATCH (m:Movie) WHERE m.released &gt; 2000 RETURN m LIMIT 5;   <span class="c">// 2000 itself excluded; LIMIT 5 ≈ TOP 5</span></code></pre>
+  <p><strong>No nickname needed</strong> on a circle you never refer to again:</p>
+<pre><code>MATCH (:Person {name: &quot;Tom Hanks&quot;})-[:DIRECTED]-&gt;(m:Movie)
+RETURN m.title, m.released
+ORDER BY m.released DESC;                   <span class="c">// newest first</span></code></pre>
+  <p><strong>Co-actors: arrows meet at the movie.</strong> ACTED_IN always points person → movie, so the co-actor's arrow points <em>left</em> into the movie:</p>
+<pre class="out">(Tom Hanks) ──ACTED_IN──► (movie) ◄──ACTED_IN── (coActor)</pre><pre><code>MATCH (:Person {name: &quot;Tom Hanks&quot;})-[:ACTED_IN]-&gt;(:Movie)&lt;-[:ACTED_IN]-(coActor:Person)
+RETURN coActor.name;</code></pre>
+  <p>(The sheet's version, <code>(:Person {...})-&gt;(:Movie)</code>, is missing the <code>-[:ACTED_IN]</code> on the first line.)</p>
+  <div class="tbl"><table>
+    <tr><th>Tool</th><th>Example</th><th>Meaning</th></tr>
+    <tr><td><code>IS NOT NULL</code></td><td><code>WHERE m.tagline IS NOT NULL</code></td><td>Only movies that have a tagline. A node can leave a property out entirely; there's no empty column.</td></tr>
+    <tr><td><code>STARTS WITH</code> / <code>ENDS WITH</code> / <code>CONTAINS</code></td><td><code>WHERE p.name STARTS WITH 'Michael'</code></td><td>Beginning / end / anywhere. <strong>Case-sensitive.</strong> There's no <code>LIKE</code>.</td></tr>
+    <tr><td><code>toLower()</code></td><td><code>WHERE toLower(p.name) STARTS WITH 'michael'</code></td><td>Ignore capitals: lower-case both sides</td></tr>
+    <tr><td><code>IN [list]</code></td><td><code>WHERE 'Neo' IN r.roles</code></td><td>Is the value in the list? Lists use <code>[ ]</code>.</td></tr>
+    <tr><td><code>|</code> (pipe)</td><td><code>-[:ACTED_IN|DIRECTED]-&gt;</code></td><td><strong>Or</strong>: acted in or directed</td></tr>
+    <tr><td><code>collect()</code></td><td><code>collect(m.title) AS MoviesList</code></td><td>Puts many rows <strong>into one list</strong>: groceries into the bag (like <code>STRING_AGG</code>)</td></tr>
+    <tr><td><code>UNWIND</code></td><td><code>UNWIND keys(p) AS key</code></td><td>Tips the bag out: <strong>one list → one row per item</strong>. The opposite of collect.</td></tr>
+  </table></div>
+<pre><code>MATCH (p:Person)-[r:ACTED_IN]-&gt;(m:Movie)     <span class="c">// r = nickname for the LINE</span>
+WHERE &#x27;Neo&#x27; IN r.roles                       <span class="c">// a role belongs to that actor-in-that-film pairing</span>
+RETURN p.name, m.title, r.roles;
+
+<span class="c">// born in the 1970s: three ways to say the same thing</span>
+WHERE a.born &gt;= 1970 AND a.born &lt; 1980
+WHERE a.born IN [1970, 1971, 1972, 1973, 1974, 1975, 1976, 1977, 1978, 1979]
+WHERE 1970 &lt;= a.born &lt; 1980
+
+MATCH (a:Person)-[:ACTED_IN|DIRECTED]-&gt;(m:Movie)
+WHERE 1970 &lt;= a.born &lt; 1980
+RETURN a.name AS PersonName, a.born AS YearBorn, collect(m.title) AS MoviesList
+ORDER BY YearBorn;                           <span class="c">// one row per person, all titles in one list</span></code></pre>
+  <p><strong>Patterns as filters.</strong> An empty circle <code>()</code> means "anything".</p>
+<pre><code>MATCH (p:Person) WHERE NOT (p)-[:ACTED_IN]-&gt;() RETURN p;    <span class="c">// people who have NEVER acted</span>
+
+MATCH (p:Person)-[:WROTE]-&gt;(m:Movie)
+WHERE NOT (p)-[:DIRECTED]-&gt;(m)               <span class="c">// reusing m = &quot;that SAME movie&quot;</span>
+RETURN p.name, m.title;                      <span class="c">// wrote it but didn&#x27;t direct it</span></code></pre>
+  <p><code>WHERE NOT</code> works like a room: MATCH brings everyone in, then sends out everyone who matches the pattern, so whoever is left has never done it. It's SQL's LEFT JOIN … IS NULL anti-join in one line.</p>
+<pre><code>MATCH (p:Person) RETURN p.name, keys(p);     <span class="c">// which properties each person has</span>
+CALL db.propertyKeys();                      <span class="c">// every property name in the whole graph (CALL ≈ EXEC)</span>
+MATCH (p:Person) UNWIND keys(p) AS key
+RETURN DISTINCT key ORDER BY key;            <span class="c">// every property any Person has, listed once</span></code></pre>
+  <p><code>keys()</code> matters in a graph because nodes of the same type don't all have the same properties. SQL tables have fixed columns.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Spot the bug: <code>MATCH (p:Person)-[:ACTED_IN]-&gt;(m:Movie) WHERE m.title = 'The Matrix' AND p.born &gt; 1960 RETURN p.name, a.born</code><span class="a"><code>a</code> was never defined; the nickname is <code>p</code>, so it must be <code>p.born</code>.</span></li>
+    <li>Collect titles for an actor in five movies: how many rows for that actor?<span class="a">One row, with a five-item list.</span></li>
+  </ol></div></details>
+</section>
+<section class="step" id="g6">
+  <h3><span class="n">10.6</span>Cypher examples 2: creating, changing and deleting</h3>
+  <div class="vs">
+    <div class="no"><span class="lbl">CREATE</span>Makes a new one <strong>without checking</strong>. Run it twice → two Tom Hanks nodes (or two ACTED_IN lines).</div>
+    <div class="ok"><span class="lbl">MERGE</span>"Find it, or create it if it isn't there." Run it twice → still one. Like Databricks <code>MERGE INTO</code>.</div>
+  </div>
+<pre><code>MERGE (p:Person {name: &quot;Tom Hanks&quot;});
+
+<span class="c">// Find both nodes FIRST, then MERGE only the line</span>
+MATCH (p:Person {name: &quot;Tom Hanks&quot;})
+MATCH (m:Movie {title: &quot;Apollo 13&quot;})
+MERGE (p)-[r:ACTED_IN]-&gt;(m);
+
+<span class="c">// Person must exist (MATCH); the movie may be missing, so MERGE creates it if needed</span>
+MATCH (p:Person {name: &#x27;Daniel Kaluuya&#x27;})
+MERGE (m:Movie {title: &#x27;Get Out&#x27;})
+MERGE (p)-[:ACTED_IN]-&gt;(m)
+RETURN p, m;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>MERGE checks the whole pattern together.</mark> The sheet's one-statement <code>MERGE (p:Person {name:'Lucille Ball'})-[:ACTED_IN]-&gt;(m:Movie {title:'Mame'})</code> can create a <em>duplicate</em> Lucille Ball and Mame if the line doesn't exist yet. MATCH the nodes first, then MERGE the line.</div>
+  <p><strong>SET</strong> adds or changes properties; separate several with commas.</p>
+<pre><code>MATCH (p:Person)-[r:ACTED_IN]-&gt;(m:Movie)
+WHERE p.name = &#x27;Tom Hanks&#x27; AND m.title = &#x27;Apollo 13&#x27;
+SET r.roles = [&#x27;Jim Lovell&#x27;], r.year = 1995      <span class="c">// on the LINE: Tom played Jim Lovell in Apollo 13</span>
+RETURN p, r, m;
+
+MATCH (m:Movie {title: &#x27;Get Out&#x27;})               <span class="c">// the title only FINDS the movie</span>
+SET m.tagline = &#x27;Gripping, scary, witty and timely!&#x27;, m.released = 2017   <span class="c">// sets TWO properties</span>
+RETURN m.title, m.tagline, m.released;</code></pre>
+  <p>Square brackets do two jobs: in a pattern, between the dashes, they hold the <strong>relationship</strong>; around a <strong>value</strong> (<code>['Jim Lovell']</code>) they make a <strong>list</strong>.</p>
+<pre><code>MATCH (p:Person)-[r:ACTED_IN]-&gt;(m:Movie)
+WHERE p.name = &#x27;Michael Caine&#x27; AND m.title = &#x27;The Dark Knight&#x27;
+REMOVE r.roles;                                  <span class="c">// the role goes; the ACTED_IN line stays</span>
+
+MATCH (p:Person) WHERE p.name = &#x27;Gene Hackman&#x27;
+SET p.born = null;                               <span class="c">// same effect as REMOVE p.born</span>
+
+MATCH (m:Movie) REMOVE m.tagline RETURN m;       <span class="c">// MATCH with no filter = EVERY movie</span></code></pre>
+  <p>Never remove <code>name</code> or <code>title</code>: they act as this graph's primary keys. <code>SHOW CONSTRAINTS</code> lists the rules protecting them.</p>
+<pre><code>MERGE (p:Person {name: &#x27;McKenna Grace&#x27;})
+ON CREATE SET p.createdAt = datetime()           <span class="c">// only if MERGE had to create her</span>
+ON MATCH SET p.updatedAt = datetime()            <span class="c">// only if she already existed</span>
+SET p.born = 2006                                <span class="c">// always</span>
+RETURN p;
+
+MERGE (m:Movie {title: &#x27;Rocketman&#x27;})             <span class="c">// exercise</span>
+ON MATCH SET m.matchedAt = datetime()
+ON CREATE SET m.createdAt = datetime()
+SET m.updatedAt = datetime()
+RETURN m;</code></pre>
+  <p><strong>Deleting:</strong> picture Emil as a balloon tied to The Matrix with a string.</p>
+<pre><code>MATCH (p:Person {name: &#x27;Emil Eifrem&#x27;}) DELETE p;          <span class="c">// ❌ fails while he still has a line</span>
+MATCH (p:Person {name: &#x27;Emil Eifrem&#x27;}) DETACH DELETE p;   <span class="c">// ✅ cuts the string, then removes him</span></code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>DELETE won't remove a node that still has lines; DETACH DELETE cuts them first.</mark> The Matrix itself is untouched.</div>
+</section>
+
+<section class="step" id="g7">
+  <h3><span class="n">10.7</span>Cypher examples 3: hops, shortest paths and counting</h3>
+  <p>People and movies <strong>take turns</strong> along ACTED_IN lines: 1 hop from Tom Hanks = a movie, 2 hops = a co-star, 4 hops = a co-star of a co-star.</p>
+<pre><code>MATCH path = (:Person {name: &#x27;Tom Hanks&#x27;})-[*0..2]-(:Person)
+RETURN path;                                     <span class="c">// 0, 1 or 2 lines of ANY type</span>
+
+MATCH p = (m:Movie {title: &#x27;The Matrix&#x27;})-[:ACTED_IN|IN_GENRE|DIRECTED*2]-()
+RETURN p LIMIT 25;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>Inside <code>[ ]</code></th><th>Means</th></tr>
+    <tr><td><code>*2</code></td><td><strong>Exactly</strong> 2 lines. (The sheet says "maximum of 2"; for "up to 2" write <code>*1..2</code> or <code>*..2</code>.)</td></tr>
+    <tr><td><code>*0..2</code></td><td>0, 1 or 2 lines</td></tr>
+    <tr><td><code>*1..12</code></td><td>Between 1 and 12 lines</td></tr>
+    <tr><td><code>path = ...</code></td><td>Names the whole route (nodes and lines) so you can return it</td></tr>
+  </table></div>
+<pre><code>MATCH (kb)-[:ACTED_IN]-(kbMovies)-[:ACTED_IN]-(firstDegree)
+WHERE kb.name = &#x27;Kevin Bacon&#x27; AND firstDegree &lt;&gt; kb      <span class="c">// &lt;&gt; = &quot;is not&quot;</span>
+RETURN kb, kbMovies, firstDegree;</code></pre>
+  <p><strong>Shortest path</strong> works like a pond ripple: drop a stone at Kevin Bacon and the search spreads one ring at a time. The first ring that reaches Tom Hanks is the shortest route, because no ring is skipped.</p>
+<pre><code>MATCH p = shortestPath(
+  (kb:Person {name: &#x27;Kevin Bacon&#x27;})-[:ACTED_IN*1..12]-(other:Person {name: &#x27;Tom Hanks&#x27;})
+)
+RETURN p;
+
+MATCH (kb:Person {name: &#x27;Kevin Bacon&#x27;})
+MATCH (other:Person) WHERE other &lt;&gt; kb
+MATCH p = shortestPath((kb)-[:ACTED_IN*1..12]-(other))
+RETURN other.name AS actor, length(p)/2 AS baconNumber   <span class="c">// every 2 lines = 1 co-star step</span>
+ORDER BY baconNumber, actor;</code></pre>
+  <p>A 2-hop path → Bacon number 1 (they shared a film); 4 hops → 2; 6 hops → 3.</p>
+<pre><code>MATCH (m:Movie)&lt;-[:ACTED_IN]-(p:Person)
+WITH m, count(p) AS castSize                     <span class="c">// WITH = pass results on (like a CTE)</span>
+RETURN m.title AS movie, castSize
+ORDER BY castSize DESC;
+
+MATCH (p:Person)-[:DIRECTED]-&gt;(m:Movie)
+RETURN p.name, count(m) AS moviesDirected        <span class="c">// grouped by p.name automatically</span>
+ORDER BY moviesDirected DESC;</code></pre>
+  <div class="key"><strong>Remember:</strong> <mark>Cypher has no GROUP BY: it groups by whatever sits beside the count.</mark> <code>count(p)</code> next to <code>m</code> gives one row per movie; next to <code>p.name</code>, one row per person.</div>
+  <details class="check"><summary>Quick-fire revision</summary><div class="body"><ol>
+    <li>Is a 2003 movie kept by <code>2000 &lt;= m.released &lt;= 2003</code>?<span class="a">Yes: "less than or equal" includes 2003.</span></li>
+    <li>Which way do both ACTED_IN arrows point in the co-actors query?<span class="a">Into the movie.</span></li>
+    <li>What does <code>WHERE NOT (p)-[:ACTED_IN]-&gt;()</code> find?<span class="a">People who have never acted.</span></li>
+    <li>In <code>r.roles</code>, what is <code>r</code>?<span class="a">The relationship (the line).</span></li>
+    <li>MERGE finds McKenna Grace already there: ON CREATE or ON MATCH?<span class="a">ON MATCH, plus the plain SET.</span></li>
+    <li>Two ways to remove a tagline?<span class="a"><code>REMOVE m.tagline</code> or <code>SET m.tagline = null</code>.</span></li>
+    <li>Shortest path of 6 hops: Bacon number?<span class="a">3.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="g8">
+  <h3><span class="n">10.8</span>Relational, document or graph?</h3>
+  <div class="tbl"><table>
+    <tr><th></th><th>Relational</th><th>Document store</th><th>Graph</th></tr>
+    <tr><td>Picture</td><td>Spreadsheets linked by ID numbers</td><td>A folder per item</td><td>A family tree on the wall</td></tr>
+    <tr><td>Structure</td><td>Tables with defined columns and types</td><td>Documents with nested objects and arrays</td><td>Nodes and relationships with properties</td></tr>
+    <tr><td>Relationships</td><td>Match keys; a junction table for many-to-many</td><td>Embed, or reference other documents</td><td>Stored directly between nodes</td></tr>
+    <tr><td>Typical queries</td><td>Join, filter, summarize groups</td><td>Read or update a whole record; filter nested fields</td><td>Follow relationships, find paths, explore neighbourhoods</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Question</th><th>Best fit</th><th>Why</th></tr>
+    <tr><td>What goes on this movie's catalogue page?</td><td>Document</td><td>Read together in one document</td></tr>
+    <tr><td>How many films per year rated 8+?</td><td>Relational</td><td>Filter and group by year</td></tr>
+    <tr><td>Which actor pairs share at least two films?</td><td>Relational or graph</td><td>Self-join Cast on film ID, or match Actor–Movie–Actor</td></tr>
+    <tr><td>Shortest chain of co-stars between two actors?</td><td>Graph</td><td>Follow lines actor → movie → actor; in SQL every step is another join</td></tr>
+    <tr><td>Students per course (course enrolment)</td><td>Relational</td><td>Students, Courses, Enrolments tables; keys prevent duplicate enrolments</td></tr>
+    <tr><td>Product specs that vary by type</td><td>Document</td><td>Nested attributes per product</td></tr>
+    <tr><td>Which apps depend on this package, directly or indirectly?</td><td>Graph</td><td>Follow DEPENDS_ON across many steps</td></tr>
+  </table></div>
+  <div class="key"><strong>The three questions:</strong> <mark>what gets read together, what changes independently, and how far do queries follow links?</mark></div>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -2615,6 +2906,22 @@ ORDER BY p.total_licences DESC;</code></pre>
     <tr><td>Auto-numbered key (Databricks)</td><td><code>id BIGINT GENERATED ALWAYS AS IDENTITY</code></td></tr>
     <tr><td>Load without duplicate keys</td><td><code>MERGE INTO t USING s ON t.id = s.id WHEN NOT MATCHED THEN INSERT *</code></td></tr>
   </table></div>
+  <div class="tbl"><table>
+    <tr><th>Cypher task</th><th>Use</th></tr>
+    <tr><td>Find a node</td><td><code>MATCH (p:Person {name: "Tom Hanks"}) RETURN p</code></td></tr>
+    <tr><td>Follow a line</td><td><code>(p)-[:ACTED_IN]-&gt;(m)</code>; no arrowhead = either way</td></tr>
+    <tr><td>Two hops (co-stars)</td><td><code>(a)-[:ACTED_IN]-&gt;(m)&lt;-[:ACTED_IN]-(b)</code></td></tr>
+    <tr><td>Range / no BETWEEN</td><td><code>WHERE 2000 &lt;= m.released &lt;= 2003</code></td></tr>
+    <tr><td>Ignore capitals</td><td><code>toLower(p.name) STARTS WITH 'michael'</code></td></tr>
+    <tr><td>Either relationship</td><td><code>[:ACTED_IN|DIRECTED]</code></td></tr>
+    <tr><td>Never did X</td><td><code>WHERE NOT (p)-[:ACTED_IN]-&gt;()</code></td></tr>
+    <tr><td>Rows → list / list → rows</td><td><code>collect(x)</code> / <code>UNWIND list AS x</code></td></tr>
+    <tr><td>Find or create</td><td><code>MERGE</code> (+ <code>ON CREATE SET</code> / <code>ON MATCH SET</code>)</td></tr>
+    <tr><td>Change / remove a property</td><td><code>SET x.p = v</code> / <code>REMOVE x.p</code> or <code>SET x.p = null</code></td></tr>
+    <tr><td>Delete a connected node</td><td><code>DETACH DELETE p</code></td></tr>
+    <tr><td>Variable hops / shortest route</td><td><code>[*1..12]</code> / <code>shortestPath(...)</code>, <code>length(p)/2</code></td></tr>
+    <tr><td>Count per group</td><td><code>RETURN m.title, count(p)</code> (no GROUP BY)</td></tr>
+  </table></div>
 </section>
 
 <section class="step" id="mistakes">
@@ -2695,6 +3002,15 @@ ORDER BY p.total_licences DESC;</code></pre>
     <div><b>Calling <code>find_many()</code></b><span>It doesn't exist. Use <code>find()</code>.</span></div>
     <div><b>Choosing MongoDB to update shared data everywhere</b><span>Embedded copies must all be updated. SQL stores it once.</span></div>
     <div><b>"NoSQL means BASE"</b><span>MongoDB supports ACID transactions.</span></div>
+    <div><b>Arrow before the label: <code>-&gt;[:CAST]-&gt;</code></b><span>Syntax error. The arrowhead goes only at the far end: <code>-[:CAST]-&gt;</code>.</span></div>
+    <div><b>Thinking both co-actor arrows point outward</b><span>ACTED_IN always points person → movie; the arrows meet at the movie.</span></div>
+    <div><b>Using <code>LIKE</code> or <code>BETWEEN</code> in Cypher</b><span>Use <code>STARTS WITH</code>/<code>CONTAINS</code> and the <code>a &lt;= x &lt;= b</code> sandwich.</span></div>
+    <div><b>Returning a nickname you never defined</b><span><code>RETURN a.born</code> when the node is <code>p</code> fails.</span></div>
+    <div><b>Putting a role on the person</b><span>Roles sit on the ACTED_IN line (<code>r.roles</code>).</span></div>
+    <div><b>One big MERGE for nodes and the line</b><span>Can create duplicate nodes. MATCH the nodes first, then MERGE the line.</span></div>
+    <div><b>Plain DELETE on a connected node</b><span>Fails. Use <code>DETACH DELETE</code>.</span></div>
+    <div><b>Reading <code>*2</code> as "up to 2"</b><span>It means exactly 2. Up to 2 is <code>*..2</code>.</span></div>
+    <div><b>Plain <code>count()</code> for co-stars</b><span>Counts paths. Use <code>count(DISTINCT ...)</code>.</span></div>
   </div>
 </section>
 
@@ -2710,7 +3026,7 @@ ORDER BY p.total_licences DESC;</code></pre>
 </section>
 
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions), Class 8 (MongoDB with PyMongo) and Class 9 (Keys and joins).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions), Class 8 (MongoDB with PyMongo), Class 9 (Keys and joins) and Class 10 (Graph databases and Cypher).<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
