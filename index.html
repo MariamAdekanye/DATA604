@@ -253,7 +253,7 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
     </ol>
   </div>
   <div class="navgroup">
-    <h2>Class 8 · MongoDB with PyMongo</h2>
+    <h2>Class 8 · MongoDB &amp; document stores</h2>
     <ol>
       <li><a href="#m1"><span class="n">8.1</span>Cards, drawers, cabinets</a></li>
       <li><a href="#m2"><span class="n">8.2</span>Connecting: Python vs shell</a></li>
@@ -266,6 +266,8 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#m9"><span class="n">8.9</span>Document rules &amp; data types</a></li>
       <li><a href="#m10"><span class="n">8.10</span>insert, $in vs $or, embedded docs</a></li>
       <li><a href="#m11"><span class="n">8.11</span>SQL or document store? ACID, CAP</a></li>
+      <li><a href="#m12"><span class="n">8.12</span>Night deck: rules, $in/$or/$all</a></li>
+      <li><a href="#m13"><span class="n">8.13</span>Scaling, sharding, replication</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -292,6 +294,17 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#g6"><span class="n">10.6</span>Examples: MERGE, SET, DELETE</a></li>
       <li><a href="#g7"><span class="n">10.7</span>Examples: hops, shortestPath, count</a></li>
       <li><a href="#g8"><span class="n">10.8</span>Relational, document or graph?</a></li>
+      <li><a href="#g9"><span class="n">10.9</span>Property graph model &amp; hops</a></li>
+      <li><a href="#g10"><span class="n">10.10</span>Takeaways &amp; other graph DBs</a></li>
+    </ol>
+  </div>
+  <div class="navgroup">
+    <h2>Class 11 · Indexing</h2>
+    <ol>
+      <li><a href="#x1"><span class="n">11.1</span>What an index is</a></li>
+      <li><a href="#x2"><span class="n">11.2</span>When it helps; costs; CREATE INDEX</a></li>
+      <li><a href="#x3"><span class="n">11.3</span>The order SQL runs in</a></li>
+      <li><a href="#x4"><span class="n">11.4</span>Query best practices</a></li>
     </ol>
   </div>
   <div class="navgroup">
@@ -300,6 +313,7 @@ footer{margin-top:80px;color:var(--muted);font-size:14px;border-top:1px solid va
       <li><a href="#cheat"><span class="n">R1</span>Cheat sheet</a></li>
       <li><a href="#mistakes"><span class="n">R2</span>Mistakes to avoid</a></li>
       <li><a href="#project"><span class="n">R3</span>Team project notes</a></li>
+      <li><a href="#exam"><span class="n">R4</span>Practice exam answers</a></li>
     </ol>
   </div>
   <p class="nomatch" id="noMatch" hidden>No topic matches that word. Try a shorter one.</p>
@@ -2301,6 +2315,66 @@ db.courses.find({ "semester.year": 2020, "semester.startMonth": "Sep" }) <span c
   </ol></div></details>
 </section>
 
+<section class="step" id="m12">
+  <h3><span class="n">8.12</span>Document stores (night deck): choosing, rules and queries</h3>
+  <p>NoSQL has four main types: <strong>column store, graph, document and key-value</strong>.</p>
+  <div class="vs">
+    <div class="ok"><span class="lbl">Choose SQL</span>When data is consistently structured and the <strong>rules connecting it matter</strong>. Course registration: a grade must belong to a student and course; dropping one course and adding another must both happen or both fail.</div>
+    <div class="ok"><span class="lbl">Choose a document store</span>When records <strong>vary in shape and are read whole</strong>. Restaurant menus or recipes: every one has a different structure.</div>
+  </div>
+  <p><strong>JSON vs BSON:</strong> JSON is just a <em>format</em> (keys and values). MongoDB stores documents as <strong>BSON</strong>, a binary version of JSON. One JSON object becomes one document, its keys become fields, and a JSON list of objects can be loaded as a collection.</p>
+  <div class="tbl"><table>
+    <tr><th>MongoDB type</th><th>Notes</th></tr>
+    <tr><td>Number</td><td>double (64-bit), int (32-bit), long, decimal</td></tr>
+    <tr><td>string, bool, date, null</td><td></td></tr>
+    <tr><td><strong>Array</strong></td><td>A list, e.g. <code>hobbies: ["reading", "hiking"]</code>. Can mix types.</td></tr>
+    <tr><td><strong>Object</strong></td><td>An embedded document, e.g. an address with street, city, zip</td></tr>
+    <tr><td>Bindata, ObjectId</td><td>Raw bytes; the 12-byte ID often used for <code>_id</code></td></tr>
+  </table></div>
+<pre><code>db.orders.find({&quot;status&quot;: &quot;delivered&quot;})                     <span class="c"># SELECT * FROM orders WHERE status = &#x27;delivered&#x27;</span>
+db.orders.find({&quot;status&quot;: &quot;delivered&quot;, &quot;customer.id&quot;: &quot;C001&quot;})   <span class="c"># both must match (AND)</span>
+db.orders.find({&quot;shipping_address.city&quot;: &quot;Calgary&quot;})        <span class="c"># dot reaches inside a nested document</span>
+db.products.find({&quot;price&quot;: {&quot;$gte&quot;: 10, &quot;$lte&quot;: 50}})       <span class="c"># between 10 and 50</span>
+db.orders.find({&quot;status&quot;: {&quot;$ne&quot;: &quot;cancelled&quot;}})            <span class="c"># not equal</span>
+db.orders.find({&quot;status&quot;: {&quot;$in&quot;: [&quot;shipped&quot;, &quot;delivered&quot;]}})   <span class="c"># any value in the list</span>
+db.products.find({&quot;$or&quot;: [{&quot;category&quot;: &quot;office&quot;}, {&quot;price&quot;: {&quot;$lt&quot;: 10}}]})</code></pre>
+  <p><code>find(filter, projection)</code>: the <strong>filter</strong> picks which <em>documents</em> come back (like WHERE); the optional <strong>projection</strong> picks which <em>fields</em> (like the SELECT list).</p>
+  <div class="tbl"><table>
+    <tr><th>Operator</th><th>Works on</th><th>Matches when</th></tr>
+    <tr><td><code>$in</code></td><td>One field</td><td>It equals <strong>any</strong> value in the list</td></tr>
+    <tr><td><code>$or</code></td><td>Different fields (or conditions)</td><td><strong>Any</strong> condition is true</td></tr>
+    <tr><td><code>$all</code></td><td>One <strong>array</strong> field</td><td>It contains <strong>every</strong> value in the list</td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark>$in = any, $all = every.</mark> <code>genres $in [Action, Adventure]</code> finds films with either; <code>$all</code> needs both. One order can't be both shipped and delivered, so <code>$all</code> on status finds nothing.</div>
+<pre><code>cursor = db.orders.find({&quot;status&quot;: &quot;delivered&quot;})      <span class="c"># a cursor: a bookmark you move through</span>
+df = pd.DataFrame(list(cursor))                       <span class="c"># turn it into a DataFrame</span></code></pre>
+  <p><strong>Aggregation pipeline</strong>, an assembly line: <code>$match</code> (like WHERE) → <code>$group</code> (like GROUP BY) → <code>$sort</code>. In the train example, <code>$match</code> keeps first-class tickets, then <code>$group</code> sums fares per id, so id 181 gets 1200 + 1000 = 2200.</p>
+</section>
+
+<section class="step" id="m13">
+  <h3><span class="n">8.13</span>Scaling, sharding and replication</h3>
+  <div class="vs">
+    <div class="ok"><span class="lbl">Scaling up = vertical</span>One <strong>bigger</strong> machine with more compute and storage, like a building getting taller.</div>
+    <div class="ok"><span class="lbl">Scaling out = horizontal</span><strong>More machines</strong> side by side sharing the work, like a longer row of houses.</div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th></th><th>Sharding</th><th>Replication</th></tr>
+    <tr><td>Does</td><td><strong>Splits</strong> the data: each machine holds only part (5 products over 3 machines)</td><td><strong>Copies</strong> the same data to several machines (one primary, secondary copies)</td></tr>
+    <tr><td>Gives</td><td>Scale out</td><td>Keeps running if a machine fails; faster reads</td></tr>
+    <tr><td>Costs</td><td>Queries may span machines</td><td>More complexity, storage and network traffic</td></tr>
+  </table></div>
+  <p><strong>Trade-off:</strong> both relational and document databases can scale out, but relational databases make cross-table rules the default (so scaling out is harder), while document stores make scaling out the default and keep most guarantees within a single document.</p>
+  <p><strong>ACID / BASE / CAP</strong> (also 8.11): MongoDB supports ACID transactions, so a document store doesn't automatically mean BASE. When replicas lose contact, <strong>CP</strong> refuses answers it can't guarantee (users wait), and <strong>AP</strong> keeps answering, maybe with stale data. A bank balance should be CP.</p>
+  <details class="check"><summary>Quick-fire revision</summary><div class="body"><ol>
+    <li>MongoDB's words for table and row?<span class="a">Collection and document.</span></li>
+    <li>The two parts of <code>find()</code>?<span class="a">Filter (which documents) and projection (which fields).</span></li>
+    <li>Genres must contain both Action and Adventure?<span class="a"><code>$all</code>.</span></li>
+    <li>Sharding vs replication?<span class="a">Sharding splits the data; replication copies it.</span></li>
+    <li>Which pipeline stage is like GROUP BY?<span class="a"><code>$group</code>.</span></li>
+    <li>Buying one more powerful server?<span class="a">Scaling up (vertical).</span></li>
+  </ol></div></details>
+</section>
+
 <!-- ============ CLASS 9 ============ -->
 <div class="part" id="class9">
   <div class="eyebrow">Class 9</div>
@@ -2791,6 +2865,172 @@ ORDER BY moviesDirected DESC;</code></pre>
   <div class="key"><strong>The three questions:</strong> <mark>what gets read together, what changes independently, and how far do queries follow links?</mark></div>
 </section>
 
+<section class="step" id="g9">
+  <h3><span class="n">10.9</span>The property graph model (night deck)</h3>
+  <p>Neo4j stores four things. Each has a rough SQL match:</p>
+  <div class="tbl"><table>
+    <tr><th>Graph term</th><th>Looks like</th><th>Relational analogue</th></tr>
+    <tr><td><strong>Node</strong></td><td>a circle, e.g. Tom Hanks</td><td>A <strong>row</strong></td></tr>
+    <tr><td><strong>Label</strong></td><td><code>:Person</code> inside the circle</td><td>The <strong>table</strong> it belongs to, but a node can have <strong>several</strong></td></tr>
+    <tr><td><strong>Relationship</strong></td><td><code>[:ACTED_IN]</code> on the line</td><td>A foreign key, or a join-table row</td></tr>
+    <tr><td><strong>Property</strong></td><td><code>{name: 'Tom Hanks'}</code></td><td>A column value</td></tr>
+    <tr><td>No fixed schema</td><td></td><td>Like MongoDB documents</td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark>a node is a row, a label is its table.</mark> Each is one step "smaller" than you might guess. A <strong>label</strong> says what kind of thing a node is; what it <strong>does</strong> shows in its relationships.</div>
+<pre><code>(:Person:Actor:Director {name: &#x27;Tom Hanks&#x27;})     <span class="c">// one node wearing three badges (labels)</span>
+(p:Person)-[:ACTED_IN {roles: [&#x27;Forrest&#x27;]}]-&gt;(m:Movie {title: &#x27;Forrest Gump&#x27;})</code></pre>
+  <p>Properties can sit on <strong>relationships</strong> too: the role belongs to Tom-in-that-film, not to Tom or the movie. In SQL that needs a separate join table. In SQL, Tom as actor <em>and</em> director needs several tables or extra columns; in a graph he's one node.</p>
+  <div class="tbl"><table>
+    <tr><th>Task</th><th>Cypher</th><th>SQL equivalent</th></tr>
+    <tr><td>Find nodes</td><td><code>MATCH (p:Person) WHERE p.born &gt; 1960 RETURN p.name</code></td><td><code>SELECT name FROM person WHERE born &gt; 1960</code></td></tr>
+    <tr><td>Follow a relationship</td><td><code>MATCH (p:Person)-[:ACTED_IN]-&gt;(m:Movie)</code></td><td>JOIN through a link table</td></tr>
+    <tr><td>Any depth</td><td><code>-[:KNOWS*1..4]-</code></td><td>Recursive CTE (a CTE that calls itself, much harder)</td></tr>
+    <tr><td>Create / upsert</td><td><code>CREATE</code> / <code>MERGE</code></td><td><code>INSERT</code> / <code>INSERT … ON DUPLICATE KEY UPDATE</code></td></tr>
+    <tr><td>Update / delete</td><td><code>SET p.born = 1815</code> / <code>DETACH DELETE p</code></td><td><code>UPDATE</code> / <code>DELETE</code></td></tr>
+    <tr><td>Summarise and sort</td><td><code>RETURN m.title, count(*) AS n ORDER BY n DESC LIMIT 5</code></td><td>GROUP BY … ORDER BY … LIMIT (grouping is implicit in Cypher)</td></tr>
+    <tr><td>Shortest path</td><td><code>shortestPath((a)-[*]-(b))</code></td><td>No simple equivalent</td></tr>
+  </table></div>
+  <p>(The deck's "any depth" example writes <code>{name, 'Joe'}</code>; it needs a colon: <code>{name: 'Joe'}</code>.)</p>
+  <div class="tbl"><table>
+    <tr><th>Hop pattern</th><th>Means</th></tr>
+    <tr><td><code>*2</code></td><td><strong>Exactly</strong> 2 steps (Tom → movie → co-star)</td></tr>
+    <tr><td><code>*..3</code></td><td><strong>1 to 3</strong> steps; the dots mean "up to". Exactly 3 is <code>*3</code>.</td></tr>
+    <tr><td><code>*2..</code></td><td>2 or more steps</td></tr>
+    <tr><td><code>*</code></td><td>Any number of steps</td></tr>
+  </table></div>
+<pre><code>MATCH (kb:Person {name: &#x27;Kevin Bacon&#x27;})-[:CAST]-(m:Movie)-[:CAST]-(co:Person)
+RETURN m.title, count(co) AS others          <span class="c">// count per movie: grouped automatically</span>
+ORDER BY others DESC;</code></pre>
+  <p>If <code>count(firstdegree)</code> and <code>count(DISTINCT firstdegree)</code> differ, some co-stars share several movies with Kevin Bacon.</p>
+</section>
+
+<section class="step" id="g10">
+  <h3><span class="n">10.10</span>Key takeaways, and other graph databases</h3>
+  <ol>
+    <li>A graph database stores <strong>relationships as data</strong>, so following them is cheap at any depth.</li>
+    <li>Choose it when questions are about <strong>connections</strong>: paths, neighbourhoods, recommendations, <strong>fraud rings</strong> (money passing round a loop of accounts).</li>
+    <li>Choose something else when the answer sits <strong>inside the records</strong>: totals → relational or columnar, whole objects → document, ID lookups → key-value. A shop's total sales per month is relational.</li>
+    <li>Neo4j's model is nodes, labels, relationships and properties; a Cypher query <strong>draws the pattern</strong> you're looking for.</li>
+  </ol>
+  <p><strong>Other graph databases:</strong> Amazon Neptune, TigerGraph, ArangoDB, JanusGraph, Memgraph, and Azure Cosmos DB's graph option. Not all use Cypher; some use <strong>Gremlin</strong>. Graph query languages aren't standardized. A graph database is a <strong>NoSQL</strong> type, not a relational one.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>In SQL terms, what is a node, and what is a label?<span class="a">A node is a row; a label is the table it belongs to.</span></li>
+    <li>What does <code>*..3</code> mean?<span class="a">1 to 3 steps.</span></li>
+    <li>Can a node have more than one label?<span class="a">Yes, e.g. Person, Actor and Director.</span></li>
+    <li>Accounts passing money round in a circle: graph or relational?<span class="a">Graph: it's a connection (fraud ring) question.</span></li>
+  </ol></div></details>
+</section>
+
+<!-- ============ CLASS 11 ============ -->
+<div class="part" id="class11">
+  <div class="eyebrow">Class 11</div>
+  <h2>Indexing, execution order and query best practices</h2>
+  <p>How databases find rows fast, the order SQL really runs in, and habits that keep queries quick.</p>
+</div>
+
+<section class="step" id="x1">
+  <h3><span class="n">11.1</span>What an index is</h3>
+  <p>An <strong>index</strong> is a separate data structure that points into a table so the database can find rows by a column's values <strong>without reading every row</strong>, like the index at the back of a textbook. Benefits: faster queries, less disk reading, better retrieval, scalability.</p>
+  <p>Most indexes are a <strong>B-tree</strong>: a sorted tree of signposts ("A–M this way, N–Z that way") that the database walks down. Search, insert and delete take <strong>O(log n)</strong> steps, so even a million rows needs only a handful of steps instead of a million.</p>
+  <div class="vs">
+    <div class="no"><span class="lbl">No index</span>For each order, scan the <strong>whole</strong> Customers table for the matching customer_id. Repeat for every order.</div>
+    <div class="ok"><span class="lbl">Index on customer_id</span>For each order, use the B-tree on <code>Customers.customer_id</code> to jump straight to the match.</div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Index type</th><th>Idea</th></tr>
+    <tr><td>B-tree</td><td>Sorted tree; the default; supports <code>=</code>, ranges, sorting</td></tr>
+    <tr><td>Full-text</td><td>Searching words inside long text</td></tr>
+    <tr><td>Hash</td><td>Exact-match lookups only (like the hash join, 9.6)</td></tr>
+    <tr><td>Bitmap</td><td>Columns with few distinct values</td></tr>
+    <tr><td><strong>Clustered</strong></td><td>The rows themselves are <strong>stored on disk in the key's order</strong>. One per table; in MySQL it's the primary key.</td></tr>
+  </table></div>
+  <div class="key"><strong>Remember:</strong> <mark>an index column doesn't have to be unique.</mark> You index columns you often search or join on (community has many repeats and can still be indexed). A <code>UNIQUE</code> index also blocks duplicates, and a primary key gets one automatically.</div>
+</section>
+
+<section class="step" id="x2">
+  <h3><span class="n">11.2</span>When an index helps, and what it costs</h3>
+  <div class="tbl"><table>
+    <tr><th>Filter</th><th>Does an index help?</th></tr>
+    <tr><td><code>WHERE community_name = 'VARSITY'</code>, few rows match</td><td>✅ Yes: jumps straight to the few matching rows</td></tr>
+    <tr><td><code>WHERE animal_type = 'DOG'</code>, most rows match</td><td>❌ Barely: MySQL may prefer reading the whole table to fetching nearly everything through the index</td></tr>
+    <tr><td><code>WHERE community_name = 'VARSITY' AND animal_type = 'DOG'</code> with an index on <code>(community_name, animal_type)</code></td><td>✅ Yes, for all Varsity rows <em>and</em> just Varsity dogs</td></tr>
+    <tr><td><code>WHERE animal_type = 'CAT'</code> with that same composite index</td><td>❌ No: it isn't the first column</td></tr>
+  </table></div>
+  <p><strong>Composite indexes</strong> sort by the first column, then the second within it, like a school list sorted by class then name. Every Ada in the whole school is scattered across classes. So:</p>
+  <div class="key"><strong>Remember:</strong> <mark>a composite index only helps if your search includes its first column.</mark> Put the column you search on most first; if you often search by name alone, index <code>(name, class)</code>.</div>
+  <div class="tbl"><table>
+    <tr><th>Cost of each index</th><th>Why</th></tr>
+    <tr><td>Storage</td><td>Each index is an extra structure on disk</td></tr>
+    <tr><td><strong>Slower writing</strong></td><td>Every INSERT, UPDATE and DELETE must update every index on the table</td></tr>
+    <tr><td>Maintenance</td><td>Indexes get <strong>fragmented</strong> (inserts, deletes, page splits when a page fills). <strong>Rebuild</strong> removes it but is heavy and may need downtime; <strong>reorganize</strong> is lighter; a <strong>fill factor</strong> leaves room for future inserts.</td></tr>
+  </table></div>
+  <p><strong>Indexes speed up reading but slow down writing.</strong> Adding rows <em>is</em> writing. A table written to every second but rarely searched should have <strong>few</strong> indexes. Indexing is a tuning choice: add or drop indexes to fit your real queries.</p>
+<pre><code>CREATE INDEX idx_community ON licensed_pets (community_name);                  <span class="c">-- one column</span>
+CREATE INDEX idx_community_animal ON licensed_pets (community_name, animal_type);  <span class="c">-- composite</span>
+CREATE UNIQUE INDEX idx_email ON customers (email);                            <span class="c">-- also blocks duplicates</span>
+CREATE TABLE people (ID INT, Name VARCHAR(50), Age INT, INDEX idx_name (Name)); <span class="c">-- on table creation</span>
+DROP INDEX idx_community ON licensed_pets;
+
+EXPLAIN SELECT * FROM licensed_pets WHERE community_name = &#x27;VARSITY&#x27;;          <span class="c">-- does it use the index?</span></code></pre>
+  <p><strong>Exercise:</strong> run that EXPLAIN, create <code>idx_community_name</code>, run EXPLAIN again and compare the type of access and the estimated rows examined. In MySQL Workbench, the Explain/execution-plan tab shows the same after a query runs.</p>
+  <p><strong>Joins:</strong> index the columns you join on, usually foreign keys like <code>orders.customer_id</code>. Primary keys are indexed automatically. MySQL also creates an index for a declared FOREIGN KEY if there isn't one; SQL Server doesn't.</p>
+  <details class="check"><summary>Check yourself</summary><div class="body"><ol>
+    <li>Composite index on (community, animal_type): can it find all cats in every community quickly?<span class="a">No: cats are scattered across every community's section. It needs the first column.</span></li>
+    <li>Why not index every column?<span class="a">Storage, slower writes (every index updated on each change), and maintenance.</span></li>
+    <li>Write-heavy, rarely searched table: many indexes or few?<span class="a">Few.</span></li>
+  </ol></div></details>
+</section>
+
+<section class="step" id="x3">
+  <h3><span class="n">11.3</span>The order SQL runs in</h3>
+  <div class="tbl"><table>
+    <tr><th>You write</th><th>It runs</th></tr>
+    <tr><td>SELECT / windowing</td><td>1. FROM / JOIN</td></tr>
+    <tr><td>FROM / JOIN</td><td>2. WHERE</td></tr>
+    <tr><td>WHERE</td><td>3. GROUP BY</td></tr>
+    <tr><td>GROUP BY</td><td>4. HAVING</td></tr>
+    <tr><td>HAVING</td><td>5. Windowing</td></tr>
+    <tr><td>ORDER BY</td><td>6. SELECT</td></tr>
+    <tr><td>LIMIT</td><td>7. ORDER BY → 8. LIMIT</td></tr>
+  </table></div>
+  <p>Like cooking: get the ingredients (FROM), throw out what you don't want (WHERE), sort into piles (GROUP BY), drop piles you don't want (HAVING), then plate up (SELECT) and serve in order (ORDER BY, LIMIT).</p>
+<pre><code>SELECT community_name, date, AVG(license_volume) AS average
+FROM licensed_pets
+WHERE YEAR(date) = 2019
+GROUP BY community_name
+HAVING average &gt; 500              <span class="c">-- standard SQL: alias doesn&#x27;t exist yet (HAVING runs before SELECT)</span>
+ORDER BY AVG(license_volume) DESC;</code></pre>
+  <ul>
+    <li><strong>HAVING with the alias:</strong> in standard SQL, write <code>HAVING AVG(license_volume) &gt; 500</code>. MySQL is relaxed and accepts the alias, but explain it the standard way in the exam. Only <strong>ORDER BY</strong> can safely use a SELECT alias.</li>
+    <li><strong>Also:</strong> <code>date</code> is in SELECT but not in GROUP BY, the same mistake as practice-exam Q4b.</li>
+    <li><strong>Subqueries:</strong> the inner query runs first: Categories → Beverages filter → CategoryID list, then Products → IN filter → SELECT.</li>
+    <li><strong>Several joins:</strong> FROM Orders, then each JOIN in order, then WHERE, then SELECT.</li>
+  </ul>
+</section>
+
+<section class="step" id="x4">
+  <h3><span class="n">11.4</span>Query best practices</h3>
+<pre><code><span class="c">-- ❌ An unnecessary join: nothing from Customers is used</span>
+SELECT o.order_id, o.order_date
+FROM Orders AS o
+LEFT JOIN Customers AS c ON o.customer_id = c.customer_id
+WHERE o.order_date &gt;= &#x27;2023-01-01&#x27;;
+
+<span class="c">-- ✅ Same answer, less work</span>
+SELECT order_id, order_date
+FROM Orders
+WHERE order_date &gt;= &#x27;2023-01-01&#x27;;</code></pre>
+  <ol>
+    <li><strong>Avoid unnecessary joins, subqueries and complex logic.</strong></li>
+    <li><strong>Avoid <code>SELECT *</code>:</strong> name the columns you need. <code>SELECT DISTINCT</code> is costly too.</li>
+    <li><strong>Index the columns in WHERE and JOIN conditions</strong>, and design composite indexes for columns often used together.</li>
+    <li><strong>Don't wrap an indexed column in a function.</strong></li>
+  </ol>
+<pre><code>WHERE YEAR(order_date) = 2023                                       <span class="c">-- ❌ can&#x27;t use the index</span>
+WHERE order_date &gt;= &#x27;2023-01-01&#x27; AND order_date &lt; &#x27;2024-01-01&#x27;      <span class="c">-- ✅ can</span></code></pre>
+  <div class="key"><strong>Why:</strong> <code>YEAR()</code> is a function: it takes a value and gives back a new one (name followed by brackets, like UPPER or ROUND). <mark>The index stores full dates, so YEAR() forces the database to compute the year for every row.</mark> A date range compares the raw dates and can jump straight into the sorted index.</div>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <div class="part" id="reference">
   <div class="eyebrow">Quick reference</div>
@@ -2922,6 +3162,18 @@ ORDER BY moviesDirected DESC;</code></pre>
     <tr><td>Variable hops / shortest route</td><td><code>[*1..12]</code> / <code>shortestPath(...)</code>, <code>length(p)/2</code></td></tr>
     <tr><td>Count per group</td><td><code>RETURN m.title, count(p)</code> (no GROUP BY)</td></tr>
   </table></div>
+  <div class="tbl"><table>
+    <tr><th>Indexing &amp; scale</th><th>Use / meaning</th></tr>
+    <tr><td>Create an index</td><td><code>CREATE INDEX idx_name ON table (col1, col2)</code></td></tr>
+    <tr><td>Check it's used</td><td><code>EXPLAIN SELECT ...</code></td></tr>
+    <tr><td>Helps when</td><td>Few rows match; you filter/join on it; composite: search includes the first column</td></tr>
+    <tr><td>Costs</td><td>Storage, slower writes, maintenance (fragmentation)</td></tr>
+    <tr><td>Index-friendly dates</td><td><code>d &gt;= '2023-01-01' AND d &lt; '2024-01-01'</code>, not <code>YEAR(d) = 2023</code></td></tr>
+    <tr><td>Execution order</td><td>FROM/JOIN → WHERE → GROUP BY → HAVING → window → SELECT → ORDER BY → LIMIT</td></tr>
+    <tr><td>Scale up / out</td><td>Vertical: bigger machine / horizontal: more machines</td></tr>
+    <tr><td>Sharding / replication</td><td>Split the data / copy the data</td></tr>
+    <tr><td>Graph ↔ SQL</td><td>Node = row, label = table, relationship = foreign key, property = column value</td></tr>
+  </table></div>
 </section>
 
 <section class="step" id="mistakes">
@@ -3011,6 +3263,17 @@ ORDER BY moviesDirected DESC;</code></pre>
     <div><b>Plain DELETE on a connected node</b><span>Fails. Use <code>DETACH DELETE</code>.</span></div>
     <div><b>Reading <code>*2</code> as "up to 2"</b><span>It means exactly 2. Up to 2 is <code>*..2</code>.</span></div>
     <div><b>Plain <code>count()</code> for co-stars</b><span>Counts paths. Use <code>count(DISTINCT ...)</code>.</span></div>
+    <div><b>Node = table, label = column</b><span>One step smaller: node = row, label = table.</span></div>
+    <div><b>Reading <code>*..3</code> as exactly 3</b><span>It means 1 to 3. Exactly 3 is <code>*3</code>.</span></div>
+    <div><b>Choosing relational for varied attributes</b><span>Fields that differ per record and keep appearing → document store.</span></div>
+    <div><b>Thinking a LEFT JOIN drops unmatched left rows</b><span>It keeps every left row (NULLs) and drops unmatched right rows.</span></div>
+    <div><b>Answering questions about people from aggregated data</b><span>Totals can't be split back into households or owners.</span></div>
+    <div><b>Using a composite index without its first column</b><span>(community, animal) can't find all cats quickly.</span></div>
+    <div><b>Many indexes on a write-heavy table</b><span>Every insert updates every index. Adding rows is writing.</span></div>
+    <div><b>"Index everything"</b><span>Each index costs storage, write speed and maintenance.</span></div>
+    <div><b><code>WHERE YEAR(date) = 2023</code></b><span>Blocks the index. Use a date range.</span></div>
+    <div><b><code>$all</code> for "any of these"</b><span><code>$in</code> = any value; <code>$all</code> = array contains every value.</span></div>
+    <div><b>Mixing up scaling up and out</b><span>Up = one bigger machine (vertical); out = more machines (horizontal).</span></div>
   </div>
 </section>
 
@@ -3025,8 +3288,93 @@ ORDER BY moviesDirected DESC;</code></pre>
   <p><strong>Still to confirm with the instructor:</strong> team size, presentation length, written deliverables, rubric, due dates.</p>
 </section>
 
+<section class="step" id="exam">
+  <h3><span class="n">R4</span>Practice exam: worked answers</h3>
+  <p>The real exam can cover content up to and including <strong>ER diagrams (November 24)</strong>.</p>
+  <div class="tbl"><table>
+    <tr><th>Q1 scenario</th><th>Answer</th><th>Reason</th></tr>
+    <tr><td>Marketplace product catalogue</td><td><strong>Document</strong></td><td>Attributes vary by category and new ones keep appearing; a product page is read whole. Fixed columns would be mostly empty.</td></tr>
+    <tr><td>Course registration</td><td><strong>Relational</strong></td><td>"Atomically enforce" seat counts, conflicts and prerequisites across entities: ACID transactions plus keys and constraints</td></tr>
+    <tr><td>App clickstream</td><td><strong>Document</strong></td><td>Event fields keep changing; huge volume and auto-expiring data scale out easily</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Q2</th><th>Answer</th></tr>
+    <tr><td>1. SQL vs MongoDB aggregation</td><td>d: SQL over tables/groups; MongoDB through a pipeline of stages</td></tr>
+    <tr><td>2. Affected by NULLs</td><td>b: COUNT(column), AVG, SUM and WHERE comparisons</td></tr>
+    <tr><td>3. Divide rows into ranked groups</td><td>b: NTILE()</td></tr>
+    <tr><td>4. ACID vs BASE</td><td>a</td></tr>
+    <tr><td>5. SQL vs NoSQL</td><td>a: fixed schema and joins vs flexible schema and horizontal scaling</td></tr>
+    <tr><td>6. Nested data</td><td>b: document store</td></tr>
+    <tr><td>6. LEFT JOIN customers → orders</td><td><strong>b</strong>: Alice twice, Bob and Carol with NULLs; order 12 (customer 4) is dropped. With a RIGHT JOIN, order 12 would appear with a NULL name.</td></tr>
+    <tr><td>7. INNER JOIN</td><td>a: only Alice's two orders</td></tr>
+  </table></div>
+<pre><code><span class="c">-- Q3a  Ridge&#x27;s 2024 cats with at least 10 licences (rows, so no SUM or GROUP BY)</span>
+SELECT community, breed, year, licenses
+FROM toy_pets
+WHERE year = 2024 AND animal_type = &#x27;Cat&#x27; AND community = &#x27;Ridge&#x27; AND licenses &gt;= 10
+ORDER BY licenses DESC;
+
+<span class="c">-- Q3b</span>
+SELECT SUM(licenses) AS total_licenses_2024 FROM toy_pets WHERE year = 2024;
+
+<span class="c">-- Q3c</span>
+SELECT community, SUM(licenses) AS total
+FROM toy_pets WHERE year = 2024
+GROUP BY community
+ORDER BY total DESC;
+
+<span class="c">-- Q3d</span>
+SELECT animal_type, breed, licenses,
+       ROUND(licenses * 100.0 / SUM(licenses) OVER (PARTITION BY animal_type), 2) AS pct_of_type
+FROM toy_pets;
+
+<span class="c">-- Q3e  average across breeds per FSA: group by FSA only; filter the average in HAVING</span>
+SELECT fsa, AVG(licenses) AS avg_licenses
+FROM toy_pets
+WHERE year = 2024
+GROUP BY fsa
+HAVING AVG(licenses) &gt;= 50;
+
+<span class="c">-- Q4a  WHERE can&#x27;t filter an aggregate: move it to HAVING, after GROUP BY</span>
+SELECT community, AVG(licenses) AS avg_lic
+FROM toy_pets
+GROUP BY community
+HAVING AVG(licenses) &gt; 60;
+
+<span class="c">-- Q4b  breed is selected but not grouped: group by both</span>
+SELECT fsa, breed, SUM(licenses) AS total
+FROM toy_pets
+GROUP BY fsa, breed
+ORDER BY total DESC, breed;</code></pre>
+  <div class="tbl"><table>
+    <tr><th>Q5</th><th>Answerable?</th><th>Why</th></tr>
+    <tr><td>a. Largest year-over-year increase 2023→2024</td><td>✅ Yes</td><td>Has community and year: total per community per year, then LAG (or a CASE pivot) and subtract</td></tr>
+    <tr><td>b. Fee revenue per breed group</td><td>❌ No</td><td>No fee column. You'd need a fee table by animal type and year, joined on.</td></tr>
+    <tr><td>c. Households in T3A with &gt; 2 animals</td><td>❌ No</td><td>Data is already aggregated per FSA/community/breed; there's no household or owner, and totals can't be split back into people</td></tr>
+    <tr><td>d. Breeds with median yearly count above the overall average</td><td>✅ Yes</td><td>Counts per breed per year exist; MySQL has no simple MEDIAN, so it takes extra work (window functions)</td></tr>
+    <tr><td>e. Did a July 2024 policy cause a break?</td><td>❌ No</td><td>Only a year column, no months, and even monthly data couldn't prove the policy <em>caused</em> it</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Q6 table</th><th>Columns</th></tr>
+    <tr><td>Passenger</td><td>Passport Number (key), Name, Meal Preference</td></tr>
+    <tr><td>Flight</td><td>Flight Number (key), Departure Date, Arrival Date, Departure City, Arrival City</td></tr>
+    <tr><td>Ticket</td><td>Ticket Number (key), Passport Number (FK), Flight Number (FK), Seat Number</td></tr>
+    <tr><td>Boarded</td><td>Ticket Number (FK), Gate, plus Seat Number or Flight Number</td></tr>
+  </table></div>
+<pre><code><span class="c">-- Extra: employees who made NO transactions (anti-join; IS NULL on the transaction side)</span>
+SELECT e.*
+FROM employee e
+LEFT JOIN transactions t ON e.employee_id = t.employee_id
+WHERE t.transaction_id IS NULL;
+
+<span class="c">-- Employees who DID make transactions, each listed once</span>
+SELECT DISTINCT e.*
+FROM employee e
+JOIN transactions t ON e.employee_id = t.employee_id;</code></pre>
+</section>
+
 <footer>
-  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions), Class 8 (MongoDB with PyMongo), Class 9 (Keys and joins) and Class 10 (Graph databases and Cypher).<br>
+  DATA 604 · University of Calgary · Personal revision notes covering Class 1 (Files &amp; CSVs), Class 2 (JSON), Class 3 (Data cleaning), Class 4 (Databases overview), Class 5 (Accessing databases), Class 6 (Subqueries, window functions and query order), Class 7 (CASE, NTILE, LAG and custom functions), Class 8 (MongoDB with PyMongo), Class 9 (Keys and joins), Class 10 (Graph databases and Cypher) and Class 11 (Indexing), plus practice exam answers.<br>
   <a class="totop" href="#start">Back to top</a>
 </footer>
 
